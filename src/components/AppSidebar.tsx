@@ -1,6 +1,7 @@
-import { ShoppingCart, Package, BarChart3, Settings } from "lucide-react";
+import { ShoppingCart, Package, BarChart3, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Sidebar,
   SidebarContent,
@@ -9,19 +10,23 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const items = [
-  { title: "نقطة البيع", url: "/", icon: ShoppingCart },
-  { title: "المنتجات", url: "/products", icon: Package },
-  { title: "التقارير", url: "/reports", icon: BarChart3 },
+const allItems = [
+  { title: "نقطة البيع", url: "/", icon: ShoppingCart, roles: ["admin", "cashier"] },
+  { title: "المنتجات", url: "/products", icon: Package, roles: ["admin"] },
+  { title: "التقارير", url: "/reports", icon: BarChart3, roles: ["admin"] },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const { role, signOut, user } = useAuth();
+
+  const items = allItems.filter((item) => role && item.roles.includes(role));
 
   return (
     <Sidebar collapsible="icon" side="right">
@@ -55,6 +60,16 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter className="p-2 border-t border-border">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={signOut} className="hover:bg-destructive/10 text-destructive">
+              <LogOut className="ml-2 h-5 w-5" />
+              {!collapsed && <span>تسجيل الخروج</span>}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }
