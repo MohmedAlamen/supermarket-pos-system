@@ -303,6 +303,8 @@ const POSPage = () => {
         </div>
       </div>
     </div>
+    {lastSale && <ReceiptPrint ref={receiptRef} {...lastSale} />}
+    </>
   );
 };
 
