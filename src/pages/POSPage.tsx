@@ -15,6 +15,18 @@ const POSPage = () => {
   const [discount, setDiscount] = useState(0);
   const [cashReceived, setCashReceived] = useState("");
   const [showCheckout, setShowCheckout] = useState(false);
+  const [lastSale, setLastSale] = useState<{
+    items: CartItem[];
+    subtotal: number;
+    discount: number;
+    discountAmount: number;
+    total: number;
+    paymentMethod: "cash" | "card";
+    cashReceived?: number;
+    change?: number;
+    date: Date;
+  } | null>(null);
+  const receiptRef = useRef<HTMLDivElement>(null);
 
   const filteredProducts = useMemo(() => {
     return sampleProducts.filter((p) => {
