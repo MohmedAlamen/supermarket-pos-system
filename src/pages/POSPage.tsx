@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt, Printer } from "lucide-react";
+import ReceiptPrint from "@/components/pos/ReceiptPrint";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
