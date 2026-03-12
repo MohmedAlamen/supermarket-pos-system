@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt, Printer } from "lucide-react";
+import ReceiptPrint from "@/components/pos/ReceiptPrint";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,18 @@ const POSPage = () => {
   const [discount, setDiscount] = useState(0);
   const [cashReceived, setCashReceived] = useState("");
   const [showCheckout, setShowCheckout] = useState(false);
+  const [lastSale, setLastSale] = useState<{
+    items: CartItem[];
+    subtotal: number;
+    discount: number;
+    discountAmount: number;
+    total: number;
+    paymentMethod: "cash" | "card";
+    cashReceived?: number;
+    change?: number;
+    date: Date;
+  } | null>(null);
+  const receiptRef = useRef<HTMLDivElement>(null);
 
   const filteredProducts = useMemo(() => {
     return sampleProducts.filter((p) => {
@@ -71,15 +84,31 @@ const POSPage = () => {
       toast.error("المبلغ المدفوع أقل من الإجمالي");
       return;
     }
+    const saleData = {
+      items: [...cart],
+      subtotal,
+      discount,
+      discountAmount,
+      total,
+      paymentMethod: method,
+      cashReceived: method === "cash" ? parseFloat(cashReceived) : undefined,
+      change: method === "cash" ? parseFloat(cashReceived) - total : undefined,
+      date: new Date(),
+    };
+    setLastSale(saleData);
     toast.success(`تم إتمام البيع بنجاح! الإجمالي: ${total.toFixed(2)} ر.س`);
     setCart([]);
     setDiscount(0);
     setCashReceived("");
     setShowCheckout(false);
+
+    // Print after a short delay to allow state update
+    setTimeout(() => window.print(), 300);
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-3rem)]">
+    <>
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-3rem)] print:hidden">
       {/* Products Section */}
       <div className="flex-1 flex flex-col p-4 overflow-hidden">
         {/* Search */}
@@ -273,6 +302,8 @@ const POSPage = () => {
         </div>
       </div>
     </div>
+    {lastSale && <ReceiptPrint ref={receiptRef} {...lastSale} />}
+    </>
   );
 };
 
