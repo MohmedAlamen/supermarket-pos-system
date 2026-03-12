@@ -72,11 +72,26 @@ const POSPage = () => {
       toast.error("المبلغ المدفوع أقل من الإجمالي");
       return;
     }
+    const saleData = {
+      items: [...cart],
+      subtotal,
+      discount,
+      discountAmount,
+      total,
+      paymentMethod: method,
+      cashReceived: method === "cash" ? parseFloat(cashReceived) : undefined,
+      change: method === "cash" ? parseFloat(cashReceived) - total : undefined,
+      date: new Date(),
+    };
+    setLastSale(saleData);
     toast.success(`تم إتمام البيع بنجاح! الإجمالي: ${total.toFixed(2)} ر.س`);
     setCart([]);
     setDiscount(0);
     setCashReceived("");
     setShowCheckout(false);
+
+    // Print after a short delay to allow state update
+    setTimeout(() => window.print(), 300);
   };
 
   return (
