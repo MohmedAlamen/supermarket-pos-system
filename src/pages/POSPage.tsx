@@ -95,7 +95,9 @@ const POSPage = () => {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-3rem)]">
+    <>
+    {lastSale && <ReceiptPrint ref={receiptRef} {...lastSale} />}
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-3rem)] print:hidden">
       {/* Products Section */}
       <div className="flex-1 flex flex-col p-4 overflow-hidden">
         {/* Search */}
