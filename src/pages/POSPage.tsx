@@ -1,14 +1,18 @@
 import { useState, useMemo, useRef } from "react";
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt, Printer } from "lucide-react";
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt, Loader2 } from "lucide-react";
 import ReceiptPrint from "@/components/pos/ReceiptPrint";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { sampleProducts, categories } from "@/data/products";
-import { Product, CartItem, Sale } from "@/types/pos";
+import { useProducts, useCategories } from "@/hooks/useProducts";
+import { useSales } from "@/hooks/useSales";
+import { Product, CartItem } from "@/types/pos";
 import { toast } from "sonner";
 
 const POSPage = () => {
+  const { products, loading } = useProducts();
+  const categories = useCategories(products);
+  const { saveSale } = useSales();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("الكل");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -29,12 +33,12 @@ const POSPage = () => {
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const filteredProducts = useMemo(() => {
-    return sampleProducts.filter((p) => {
+    return products.filter((p) => {
       const matchSearch = p.name.includes(search) || p.barcode.includes(search);
       const matchCategory = selectedCategory === "الكل" || p.category === selectedCategory;
       return matchSearch && matchCategory;
     });
-  }, [search, selectedCategory]);
+  }, [search, selectedCategory, products]);
 
   const addToCart = (product: Product) => {
     setCart((prev) => {
@@ -75,7 +79,7 @@ const POSPage = () => {
   const total = subtotal - discountAmount;
   const change = cashReceived ? parseFloat(cashReceived) - total : 0;
 
-  const completeSale = (method: "cash" | "card") => {
+  const completeSale = async (method: "cash" | "card") => {
     if (cart.length === 0) {
       toast.error("السلة فارغة");
       return;
@@ -84,6 +88,7 @@ const POSPage = () => {
       toast.error("المبلغ المدفوع أقل من الإجمالي");
       return;
     }
+
     const saleData = {
       items: [...cart],
       subtotal,
@@ -95,6 +100,10 @@ const POSPage = () => {
       change: method === "cash" ? parseFloat(cashReceived) - total : undefined,
       date: new Date(),
     };
+
+    const saved = await saveSale(saleData);
+    if (!saved) return;
+
     setLastSale(saleData);
     toast.success(`تم إتمام البيع بنجاح! الإجمالي: ${total.toFixed(2)} ر.س`);
     setCart([]);
@@ -102,16 +111,22 @@ const POSPage = () => {
     setCashReceived("");
     setShowCheckout(false);
 
-    // Print after a short delay to allow state update
     setTimeout(() => window.print(), 300);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-3rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <>
     <div className="flex flex-col lg:flex-row h-[calc(100vh-3rem)] print:hidden">
       {/* Products Section */}
       <div className="flex-1 flex flex-col p-4 overflow-hidden">
-        {/* Search */}
         <div className="flex gap-2 mb-3">
           <div className="relative flex-1">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -124,7 +139,6 @@ const POSPage = () => {
           </div>
         </div>
 
-        {/* Categories */}
         <div className="flex gap-2 mb-3 overflow-x-auto pb-2 scrollbar-hide">
           {categories.map((cat) => (
             <button
@@ -141,7 +155,6 @@ const POSPage = () => {
           ))}
         </div>
 
-        {/* Products Grid */}
         <div className="flex-1 overflow-y-auto">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
             {filteredProducts.map((product) => (
@@ -173,7 +186,6 @@ const POSPage = () => {
           </h2>
         </div>
 
-        {/* Cart Items */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {cart.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
@@ -182,35 +194,21 @@ const POSPage = () => {
             </div>
           ) : (
             cart.map((item) => (
-              <div
-                key={item.product.id}
-                className="bg-secondary/50 rounded-lg p-3 animate-slide-in"
-              >
+              <div key={item.product.id} className="bg-secondary/50 rounded-lg p-3 animate-slide-in">
                 <div className="flex justify-between items-start mb-2">
-                  <button
-                    onClick={() => removeFromCart(item.product.id)}
-                    className="text-destructive hover:bg-destructive/10 p-1 rounded"
-                  >
+                  <button onClick={() => removeFromCart(item.product.id)} className="text-destructive hover:bg-destructive/10 p-1 rounded">
                     <Trash2 className="h-4 w-4" />
                   </button>
                   <p className="font-medium text-sm flex-1 text-right">{item.product.name}</p>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="font-bold text-primary">
-                    {(item.product.price * item.quantity).toFixed(2)} ر.س
-                  </p>
+                  <p className="font-bold text-primary">{(item.product.price * item.quantity).toFixed(2)} ر.س</p>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => updateQuantity(item.product.id, -1)}
-                      className="bg-muted hover:bg-border rounded-md p-1"
-                    >
+                    <button onClick={() => updateQuantity(item.product.id, -1)} className="bg-muted hover:bg-border rounded-md p-1">
                       <Minus className="h-4 w-4" />
                     </button>
                     <span className="w-8 text-center font-bold">{item.quantity}</span>
-                    <button
-                      onClick={() => updateQuantity(item.product.id, 1)}
-                      className="bg-muted hover:bg-border rounded-md p-1"
-                    >
+                    <button onClick={() => updateQuantity(item.product.id, 1)} className="bg-muted hover:bg-border rounded-md p-1">
                       <Plus className="h-4 w-4" />
                     </button>
                   </div>
@@ -220,7 +218,6 @@ const POSPage = () => {
           )}
         </div>
 
-        {/* Totals & Checkout */}
         <div className="p-4 border-t border-border space-y-3">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">خصم %</span>
@@ -266,27 +263,16 @@ const POSPage = () => {
                 </p>
               )}
               <div className="flex gap-2">
-                <Button
-                  onClick={() => completeSale("cash")}
-                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
-                >
+                <Button onClick={() => completeSale("cash")} className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90">
                   <Banknote className="h-4 w-4 ml-1" />
                   نقدي
                 </Button>
-                <Button
-                  onClick={() => completeSale("card")}
-                  variant="outline"
-                  className="flex-1 border-primary text-primary hover:bg-primary/10"
-                >
+                <Button onClick={() => completeSale("card")} variant="outline" className="flex-1 border-primary text-primary hover:bg-primary/10">
                   <CreditCard className="h-4 w-4 ml-1" />
                   بطاقة
                 </Button>
               </div>
-              <Button
-                variant="ghost"
-                onClick={() => setShowCheckout(false)}
-                className="w-full text-muted-foreground"
-              >
+              <Button variant="ghost" onClick={() => setShowCheckout(false)} className="w-full text-muted-foreground">
                 إلغاء
               </Button>
             </div>
