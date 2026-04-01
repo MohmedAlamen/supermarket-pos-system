@@ -21,7 +21,7 @@ export function useSales() {
       return false;
     }
 
-    const { error } = await supabase.from("sales").insert({
+    const { error } = await (supabase as any).from("sales").insert({
       user_id: user.id,
       items: sale.items.map((item) => ({
         product_id: item.product.id,

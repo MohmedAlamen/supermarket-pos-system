@@ -9,7 +9,7 @@ export function useProducts() {
 
   const fetchProducts = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("products")
       .select("*")
       .order("name");
@@ -37,7 +37,7 @@ export function useProducts() {
   }, []);
 
   const addProduct = async (product: Omit<Product, "id">) => {
-    const { error } = await supabase.from("products").insert({
+    const { error } = await (supabase as any).from("products").insert({
       name: product.name,
       barcode: product.barcode,
       price: product.price,
@@ -55,7 +55,7 @@ export function useProducts() {
   };
 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("products")
       .update({
         name: updates.name,
@@ -76,7 +76,7 @@ export function useProducts() {
   };
 
   const deleteProduct = async (id: string) => {
-    const { error } = await supabase.from("products").delete().eq("id", id);
+    const { error } = await (supabase as any).from("products").delete().eq("id", id);
     if (error) {
       toast.error("خطأ في حذف المنتج");
       console.error(error);
