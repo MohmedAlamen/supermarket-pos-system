@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Edit2, Trash2, Search, Package } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, Package, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,12 +11,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { sampleProducts, categories } from "@/data/products";
+import { useProducts, useCategories } from "@/hooks/useProducts";
 import { Product } from "@/types/pos";
-import { toast } from "sonner";
 
 const ProductsPage = () => {
-  const [products, setProducts] = useState<Product[]>(sampleProducts);
+  const { products, loading, addProduct, updateProduct, deleteProduct } = useProducts();
+  const categories = useCategories(products);
   const [search, setSearch] = useState("");
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -26,9 +26,11 @@ const ProductsPage = () => {
     (p) => p.name.includes(search) || p.barcode.includes(search)
   );
 
+  const catOptions = categories.filter((c) => c !== "الكل");
+
   const openAdd = () => {
     setEditProduct(null);
-    setForm({ name: "", barcode: "", price: "", stock: "", category: categories[1] });
+    setForm({ name: "", barcode: "", price: "", stock: "", category: catOptions[0] || "" });
     setIsDialogOpen(true);
   };
 
@@ -44,39 +46,39 @@ const ProductsPage = () => {
     setIsDialogOpen(true);
   };
 
-  const handleSave = () => {
-    if (!form.name || !form.price) {
-      toast.error("يرجى ملء جميع الحقول المطلوبة");
-      return;
-    }
+  const handleSave = async () => {
+    if (!form.name || !form.price) return;
     if (editProduct) {
-      setProducts((prev) =>
-        prev.map((p) =>
-          p.id === editProduct.id
-            ? { ...p, name: form.name, barcode: form.barcode, price: parseFloat(form.price), stock: parseInt(form.stock), category: form.category }
-            : p
-        )
-      );
-      toast.success("تم تحديث المنتج بنجاح");
-    } else {
-      const newProduct: Product = {
-        id: Date.now().toString(),
+      await updateProduct(editProduct.id, {
         name: form.name,
         barcode: form.barcode,
         price: parseFloat(form.price),
         stock: parseInt(form.stock) || 0,
         category: form.category,
-      };
-      setProducts((prev) => [...prev, newProduct]);
-      toast.success("تم إضافة المنتج بنجاح");
+      });
+    } else {
+      await addProduct({
+        name: form.name,
+        barcode: form.barcode,
+        price: parseFloat(form.price),
+        stock: parseInt(form.stock) || 0,
+        category: form.category,
+      });
     }
     setIsDialogOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-    toast.success("تم حذف المنتج");
+  const handleDelete = async (id: string) => {
+    await deleteProduct(id);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto">
@@ -122,7 +124,7 @@ const ProductsPage = () => {
                   onChange={(e) => setForm({ ...form, category: e.target.value })}
                   className="w-full mt-1 bg-secondary border border-border rounded-md h-10 px-3 text-foreground"
                 >
-                  {categories.filter((c) => c !== "الكل").map((cat) => (
+                  {catOptions.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
