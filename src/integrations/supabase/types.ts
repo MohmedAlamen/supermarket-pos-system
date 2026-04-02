@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      products: {
+        Row: {
+          barcode: string | null
+          category: string | null
+          created_at: string
+          id: string
+          name: string
+          price: number
+          stock: number
+        }
+        Insert: {
+          barcode?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          price?: number
+          stock?: number
+        }
+        Update: {
+          barcode?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          price?: number
+          stock?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -32,6 +62,36 @@ export type Database = {
           full_name?: string
           id?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      sales: {
+        Row: {
+          cashier_id: string | null
+          created_at: string
+          discount: number
+          id: string
+          items: Json
+          payment_method: string
+          total: number
+        }
+        Insert: {
+          cashier_id?: string | null
+          created_at?: string
+          discount?: number
+          id?: string
+          items?: Json
+          payment_method?: string
+          total?: number
+        }
+        Update: {
+          cashier_id?: string | null
+          created_at?: string
+          discount?: number
+          id?: string
+          items?: Json
+          payment_method?: string
+          total?: number
         }
         Relationships: []
       }
