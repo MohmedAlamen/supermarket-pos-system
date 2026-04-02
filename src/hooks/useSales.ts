@@ -22,20 +22,16 @@ export function useSales() {
     }
 
     const { error } = await (supabase as any).from("sales").insert({
-      user_id: user.id,
+      cashier_id: user.id,
       items: sale.items.map((item) => ({
         product_id: item.product.id,
         name: item.product.name,
         price: item.product.price,
         quantity: item.quantity,
       })),
-      subtotal: sale.subtotal,
-      discount: sale.discount,
-      discount_amount: sale.discountAmount,
       total: sale.total,
+      discount: sale.discount,
       payment_method: sale.paymentMethod,
-      cash_received: sale.cashReceived ?? null,
-      change_amount: sale.change ?? null,
     });
 
     if (error) {
