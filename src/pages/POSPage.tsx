@@ -164,6 +164,15 @@ const POSPage = () => {
       {/* Products Section */}
       <div className="flex-1 flex flex-col p-4 overflow-hidden">
         <div className="flex gap-2 mb-3">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setScannerOpen(true)}
+            className="shrink-0 border-primary text-primary hover:bg-primary/10"
+            title="مسح الباركود"
+          >
+            <ScanLine className="h-5 w-5" />
+          </Button>
           <div className="relative flex-1">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -171,6 +180,12 @@ const POSPage = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pr-10 bg-card border-border"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && search.trim()) {
+                  handleBarcodeScan(search.trim());
+                  setSearch("");
+                }
+              }}
             />
           </div>
         </div>
