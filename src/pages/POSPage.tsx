@@ -1,6 +1,7 @@
-import { useState, useMemo, useRef } from "react";
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt, Loader2 } from "lucide-react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt, Loader2, ScanLine } from "lucide-react";
 import ReceiptPrint from "@/components/pos/ReceiptPrint";
+import BarcodeScanner from "@/components/pos/BarcodeScanner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,9 @@ const POSPage = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState(0);
   const [cashReceived, setCashReceived] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const barcodeBuffer = useRef("");
+  const barcodeTimer = useRef<ReturnType<typeof setTimeout>>();
   const [showCheckout, setShowCheckout] = useState(false);
   const [lastSale, setLastSale] = useState<{
     items: CartItem[];
@@ -39,6 +43,38 @@ const POSPage = () => {
       return matchSearch && matchCategory;
     });
   }, [search, selectedCategory, products]);
+
+  const handleBarcodeScan = useCallback((barcode: string) => {
+    const product = products.find((p) => p.barcode === barcode);
+    if (product) {
+      addToCart(product);
+      toast.success(`تم إضافة: ${product.name}`);
+    } else {
+      toast.error(`لم يتم العثور على منتج بالباركود: ${barcode}`);
+    }
+  }, [products]);
+
+  // Detect physical barcode scanner (rapid keyboard input)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+
+      if (e.key === "Enter" && barcodeBuffer.current.length > 3) {
+        handleBarcodeScan(barcodeBuffer.current);
+        barcodeBuffer.current = "";
+        return;
+      }
+
+      if (e.key.length === 1) {
+        barcodeBuffer.current += e.key;
+        clearTimeout(barcodeTimer.current);
+        barcodeTimer.current = setTimeout(() => { barcodeBuffer.current = ""; }, 100);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleBarcodeScan]);
 
   const addToCart = (product: Product) => {
     setCart((prev) => {
@@ -128,6 +164,15 @@ const POSPage = () => {
       {/* Products Section */}
       <div className="flex-1 flex flex-col p-4 overflow-hidden">
         <div className="flex gap-2 mb-3">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setScannerOpen(true)}
+            className="shrink-0 border-primary text-primary hover:bg-primary/10"
+            title="مسح الباركود"
+          >
+            <ScanLine className="h-5 w-5" />
+          </Button>
           <div className="relative flex-1">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -135,6 +180,12 @@ const POSPage = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pr-10 bg-card border-border"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && search.trim()) {
+                  handleBarcodeScan(search.trim());
+                  setSearch("");
+                }
+              }}
             />
           </div>
         </div>
@@ -289,6 +340,7 @@ const POSPage = () => {
       </div>
     </div>
     {lastSale && <ReceiptPrint ref={receiptRef} {...lastSale} />}
+    <BarcodeScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onScan={handleBarcodeScan} />
     </>
   );
 };
