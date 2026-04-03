@@ -44,6 +44,38 @@ const POSPage = () => {
     });
   }, [search, selectedCategory, products]);
 
+  const handleBarcodeScan = useCallback((barcode: string) => {
+    const product = products.find((p) => p.barcode === barcode);
+    if (product) {
+      addToCart(product);
+      toast.success(`تم إضافة: ${product.name}`);
+    } else {
+      toast.error(`لم يتم العثور على منتج بالباركود: ${barcode}`);
+    }
+  }, [products]);
+
+  // Detect physical barcode scanner (rapid keyboard input)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+
+      if (e.key === "Enter" && barcodeBuffer.current.length > 3) {
+        handleBarcodeScan(barcodeBuffer.current);
+        barcodeBuffer.current = "";
+        return;
+      }
+
+      if (e.key.length === 1) {
+        barcodeBuffer.current += e.key;
+        clearTimeout(barcodeTimer.current);
+        barcodeTimer.current = setTimeout(() => { barcodeBuffer.current = ""; }, 100);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleBarcodeScan]);
+
   const addToCart = (product: Product) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
