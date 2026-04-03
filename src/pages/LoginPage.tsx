@@ -8,10 +8,17 @@ import { ShoppingCart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const LoginPage = () => {
-  const { signIn } = useAuth();
+  const { signIn, user } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Redirect if already logged in
+  if (user) {
+    navigate("/", { replace: true });
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,6 +26,7 @@ const LoginPage = () => {
     try {
       await signIn(email, password);
       toast.success("تم تسجيل الدخول بنجاح");
+      navigate("/", { replace: true });
     } catch (error: any) {
       toast.error(error.message || "فشل تسجيل الدخول");
     } finally {
