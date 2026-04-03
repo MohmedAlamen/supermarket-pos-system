@@ -340,6 +340,7 @@ const POSPage = () => {
       </div>
     </div>
     {lastSale && <ReceiptPrint ref={receiptRef} {...lastSale} />}
+    <BarcodeScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onScan={handleBarcodeScan} />
     </>
   );
 };
