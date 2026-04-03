@@ -19,6 +19,9 @@ const POSPage = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState(0);
   const [cashReceived, setCashReceived] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const barcodeBuffer = useRef("");
+  const barcodeTimer = useRef<ReturnType<typeof setTimeout>>();
   const [showCheckout, setShowCheckout] = useState(false);
   const [lastSale, setLastSale] = useState<{
     items: CartItem[];
