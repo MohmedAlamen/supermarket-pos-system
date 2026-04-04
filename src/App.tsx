@@ -9,6 +9,7 @@ import AppLayout from "@/components/AppLayout";
 import POSPage from "./pages/POSPage";
 import ProductsPage from "./pages/ProductsPage";
 import ReportsPage from "./pages/ReportsPage";
+import StaffPage from "./pages/StaffPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 
