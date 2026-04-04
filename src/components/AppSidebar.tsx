@@ -18,6 +18,7 @@ const allItems = [
   { title: "نقطة البيع", url: "/", icon: ShoppingCart, roles: ["admin", "cashier"] },
   { title: "المنتجات", url: "/products", icon: Package, roles: ["admin"] },
   { title: "التقارير", url: "/reports", icon: BarChart3, roles: ["admin"] },
+  { title: "الموظفين", url: "/staff", icon: Users, roles: ["admin"] },
 ];
 
 export function AppSidebar() {
