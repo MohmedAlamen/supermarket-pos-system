@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface SaleItem {
   name: string;
@@ -78,7 +78,7 @@ export function exportToPDF(
     sale.payment_method === "cash" ? "Cash" : "Card",
   ]);
 
-  (doc as any).autoTable({
+  autoTable(doc, {
     startY: yPos + 4,
     head: [["#", "Date", "Time", "Products", "Discount", "Total", "Payment"]],
     body: tableData,
