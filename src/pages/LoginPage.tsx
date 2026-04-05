@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Navigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -7,6 +8,8 @@ import { ShoppingCart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const LoginPage = () => {
+  const { user } = useAuth();
+  if (user) return <Navigate to="/" replace />;
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
