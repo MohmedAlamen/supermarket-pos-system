@@ -8,12 +8,12 @@ import { ShoppingCart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const LoginPage = () => {
-  const { user } = useAuth();
-  if (user) return <Navigate to="/" replace />;
-  const { signIn } = useAuth();
+  const { user, signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  if (user) return <Navigate to="/" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
