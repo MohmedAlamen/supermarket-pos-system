@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import cairoFontBase64 from "./cairoFont";
 
 interface SaleItem {
   name: string;
@@ -15,6 +16,12 @@ interface SaleRecord {
   discount: number;
   payment_method: string;
   items: SaleItem[];
+}
+
+function setupArabicFont(doc: jsPDF) {
+  doc.addFileToVFS("Cairo-Regular.ttf", cairoFontBase64);
+  doc.addFont("Cairo-Regular.ttf", "Cairo", "normal");
+  doc.setFont("Cairo");
 }
 
 export function exportToExcel(sales: SaleRecord[], dateRange: string) {
@@ -32,7 +39,6 @@ export function exportToExcel(sales: SaleRecord[], dateRange: string) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "المبيعات");
 
-  // Auto column widths
   const colWidths = Object.keys(rows[0] || {}).map(key => ({
     wch: Math.max(key.length, ...rows.map(r => String((r as any)[key]).length)) + 2
   }));
@@ -48,44 +54,45 @@ export function exportToPDF(
 ) {
   const doc = new jsPDF({ orientation: "landscape" });
 
-  // Use built-in helvetica (no Arabic shaping but functional)
-  doc.setFont("helvetica");
+  setupArabicFont(doc);
+
+  // Title
   doc.setFontSize(18);
-  doc.text("Sales Report", 14, 20);
+  doc.text("تقرير المبيعات", doc.internal.pageSize.getWidth() - 14, 20, { align: "right" });
 
   doc.setFontSize(10);
-  doc.text(`Date: ${dateRange}`, 14, 28);
+  doc.text(`التاريخ: ${dateRange}`, doc.internal.pageSize.getWidth() - 14, 28, { align: "right" });
 
   // Stats summary
   let yPos = 36;
   doc.setFontSize(12);
-  doc.text("Summary", 14, yPos);
+  doc.text("ملخص", doc.internal.pageSize.getWidth() - 14, yPos, { align: "right" });
   yPos += 8;
   doc.setFontSize(10);
   stats.forEach((stat) => {
-    doc.text(`${stat.title}: ${stat.value}`, 14, yPos);
+    doc.text(`${stat.title}: ${stat.value}`, doc.internal.pageSize.getWidth() - 14, yPos, { align: "right" });
     yPos += 6;
   });
 
   // Sales table
   const tableData = sales.map((sale, i) => [
-    i + 1,
-    new Date(sale.created_at).toLocaleDateString("en-US"),
-    new Date(sale.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
-    (sale.items as SaleItem[]).map(item => `${item.name} x${item.quantity}`).join(", "),
-    `${sale.discount}%`,
+    sale.payment_method === "cash" ? "نقدي" : "بطاقة",
     sale.total.toFixed(2),
-    sale.payment_method === "cash" ? "Cash" : "Card",
+    `${sale.discount}%`,
+    (sale.items as SaleItem[]).map(item => `${item.name} x${item.quantity}`).join(", "),
+    new Date(sale.created_at).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" }),
+    new Date(sale.created_at).toLocaleDateString("ar-SA"),
+    i + 1,
   ]);
 
   autoTable(doc, {
     startY: yPos + 4,
-    head: [["#", "Date", "Time", "Products", "Discount", "Total", "Payment"]],
+    head: [["طريقة الدفع", "الإجمالي", "الخصم", "المنتجات", "الوقت", "التاريخ", "#"]],
     body: tableData,
     theme: "grid",
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [22, 163, 74] },
+    styles: { fontSize: 8, font: "Cairo", halign: "right" },
+    headStyles: { fillColor: [22, 163, 74], font: "Cairo", halign: "right" },
   });
 
-  doc.save(`Sales_Report_${dateRange}.pdf`);
+  doc.save(`تقرير_المبيعات_${dateRange}.pdf`);
 }
