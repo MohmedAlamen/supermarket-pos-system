@@ -78,7 +78,7 @@ export function exportToPDF(
     sale.payment_method === "cash" ? "Cash" : "Card",
   ]);
 
-  (doc as any).autoTable({
+  autoTable(doc, {
     startY: yPos + 4,
     head: [["#", "Date", "Time", "Products", "Discount", "Total", "Payment"]],
     body: tableData,
