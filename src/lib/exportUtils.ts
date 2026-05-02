@@ -2,6 +2,10 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import cairoFontBase64 from "./cairoFont";
+import storeLogoBase64 from "./storeLogo";
+
+const STORE_NAME = "متجر السوبر ماركت";
+const STORE_TAGLINE = "نظام إدارة المبيعات";
 
 interface SaleItem {
   name: string;
@@ -56,21 +60,44 @@ export function exportToPDF(
 
   setupArabicFont(doc);
 
-  // Title
-  doc.setFontSize(18);
-  doc.text("تقرير المبيعات", doc.internal.pageSize.getWidth() - 14, 20, { align: "right" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  // Header: Logo + Store name
+  try {
+    doc.addImage(storeLogoBase64, "PNG", 14, 10, 22, 22);
+  } catch (e) {
+    console.error("Logo load error", e);
+  }
+
+  doc.setFontSize(20);
+  doc.setTextColor(22, 163, 74);
+  doc.text(STORE_NAME, pageWidth - 14, 20, { align: "right" });
 
   doc.setFontSize(10);
-  doc.text(`التاريخ: ${dateRange}`, doc.internal.pageSize.getWidth() - 14, 28, { align: "right" });
+  doc.setTextColor(120, 120, 120);
+  doc.text(STORE_TAGLINE, pageWidth - 14, 27, { align: "right" });
+
+  // Divider line
+  doc.setDrawColor(22, 163, 74);
+  doc.setLineWidth(0.5);
+  doc.line(14, 34, pageWidth - 14, 34);
+
+  // Report title
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(14);
+  doc.text("تقرير المبيعات", pageWidth - 14, 42, { align: "right" });
+
+  doc.setFontSize(10);
+  doc.text(`التاريخ: ${dateRange}`, pageWidth - 14, 49, { align: "right" });
 
   // Stats summary
-  let yPos = 36;
+  let yPos = 57;
   doc.setFontSize(12);
-  doc.text("ملخص", doc.internal.pageSize.getWidth() - 14, yPos, { align: "right" });
-  yPos += 8;
+  doc.text("ملخص", pageWidth - 14, yPos, { align: "right" });
+  yPos += 7;
   doc.setFontSize(10);
   stats.forEach((stat) => {
-    doc.text(`${stat.title}: ${stat.value}`, doc.internal.pageSize.getWidth() - 14, yPos, { align: "right" });
+    doc.text(`${stat.title}: ${stat.value}`, pageWidth - 14, yPos, { align: "right" });
     yPos += 6;
   });
 
