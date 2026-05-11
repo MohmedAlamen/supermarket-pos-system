@@ -1,73 +1,165 @@
-# Welcome to your Lovable project
+# نظام نقطة البيع للسوبر ماركت | Supermarket POS System
 
-## Project info
+## مفهوم المشروع | Project Concept
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+نظام متكامل لإدارة نقطة البيع (POS) في السوبر ماركتات والمتاجر الصغيرة. يوفر حلاً شاملاً لتسجيل المبيعات، إدارة المخزون، الإبلاغ عن الأداء، وإدارة الموظفين. التطبيق مبني على أحدث التقنيات الويب لضمان أداء سريع وموثوقية عالية.
 
-## How can I edit this code?
+**An integrated Point of Sale (POS) system for supermarkets and small stores. It provides a comprehensive solution for sales transactions, inventory management, performance reporting, and staff administration. The application is built with modern web technologies to ensure fast performance and high reliability.**
 
-There are several ways of editing your application.
+---
 
-**Use Lovable**
+## الميزات الرئيسية | Key Features
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### 🛒 نقطة البيع | Point of Sale (POS)
+- **الفحص السريع للمنتجات**: ماسح الباركود المدمج لتسجيل المنتجات بسرعة
+- **إدارة سلة التسوق**: إضافة/حذف/تعديل كميات المنتجات
+- **معالجة الدفع**: دعم طرق دفع متعددة
+- **طباعة الإيصالات**: طباعة تفصيلية للعمليات
 
-Changes made via Lovable will be committed automatically to this repo.
+### 📊 إدارة المخزون | Inventory Management
+- **تتبع المنتجات**: قائمة شاملة بجميع المنتجات
+- **تنبيهات المخزون المنخفض**: إشعارات تلقائية عند انخفاض المخزون
+- **تحديث الكميات**: تحديث فوري لكميات المنتجات بعد كل عملية بيع
 
-**Use your preferred IDE**
+### 📈 التقارير والتحليلات | Reports & Analytics
+- **تقارير المبيعات**: إحصائيات مفصلة عن المبيعات اليومية والشهرية
+- **تحليل الأداء**: متابعة الأرباح والخسائر
+- **رؤى البيانات**: رسوم بيانية وجداول تفصيلية
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 👥 إدارة الموظفين | Staff Management
+- **تسجيل الموظفين**: إنشاء وإدارة حسابات الموظفين
+- **الأدوار والصلاحيات**: نظام صلاحيات متقدم حسب الدور الوظيفي
+- **تتبع الأنشطة**: سجل شامل لأنشطة كل موظف
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 🔐 الأمان والمصادقة | Security & Authentication
+- **تسجيل الدخول الآمن**: نظام مصادقة موثوق مع Supabase
+- **التشفير**: حماية كاملة للبيانات الحساسة
+- **الصلاحيات المتقدمة**: تحكم دقيق على من يمكنه الوصول لماذا
 
-Follow these steps:
+---
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## المكدس التكنولوجي | Tech Stack
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Frontend
+- **React 18**: مكتبة واجهات المستخدم
+- **TypeScript**: لتطوير آمن من حيث الأنواع
+- **Vite**: أداة بناء سريعة وحديثة
+- **Tailwind CSS**: نظام تصميم سريع الاستجابة
+- **Shadcn/ui**: مكتبة مكونات احترافية
 
-# Step 3: Install the necessary dependencies.
-npm i
+### Backend
+- **Supabase**: منصة Firebase مفتوحة المصدر
+- **PostgreSQL**: قاعدة البيانات القوية
+- **Real-time Updates**: تحديثات فورية للبيانات
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+### Testing & Quality
+- **Vitest**: اختبار الوحدات السريع
+- **Playwright**: اختبار التكامل والتطبيقات النهائية
+- **ESLint**: فحص جودة الكود
+
+---
+
+## البنية المشروعية | Project Structure
+
+```
+src/
+├── components/          # مكونات الواجهة
+│   ├── pos/            # مكونات نقطة البيع
+│   ├── ui/             # مكونات واجهة المستخدم الأساسية
+│   └── ...
+├── pages/              # الصفحات الرئيسية
+│   ├── POSPage.tsx     # صفحة نقطة البيع
+│   ├── ProductsPage.tsx
+│   ├── ReportsPage.tsx
+│   └── ...
+├── hooks/              # React hooks مخصصة
+├── contexts/           # Context API للحالة العامة
+├── integrations/       # تكاملات خارجية (Supabase)
+├── lib/                # وظائف مساعدة
+└── types/              # تعريفات TypeScript
 ```
 
-**Edit a file directly in GitHub**
+---
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## البدء السريع | Quick Start
 
-**Use GitHub Codespaces**
+### المتطلبات | Prerequisites
+- Node.js 18+
+- npm (package manager)
+- حساب Supabase (Supabase account)
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### التثبيت | Installation
 
-## What technologies are used for this project?
+```bash
+# استنساخ المشروع
+git clone <repository-url>
+cd supermarket-pos-system
 
-This project is built with:
+# تثبيت المتعلقات
+npm install
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+# إعداد متغيرات البيئة
+cp .env.example .env.local
+# قم بتعديل .env.local بمفاتيح Supabase الخاصة بك
+```
 
-## How can I deploy this project?
+### التشغيل | Running
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+```bash
+# بدء خادم التطوير
+npm run dev
 
-## Can I connect a custom domain to my Lovable project?
+# بناء الإنتاج
+npm run build
 
-Yes, you can!
+# اختبار التطبيق
+npm run test
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+# اختبار البلاي رايت
+npm run test:e2e
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+---
+
+## الميزات المتقدمة | Advanced Features
+
+### 🔄 المزامنة الفورية | Real-time Synchronization
+يتم تحديث بيانات المخزون والمبيعات في الوقت الفعلي عبر جميع الأجهزة المتصلة.
+
+### 📱 التوافق مع الهاتف | Mobile Responsive
+واجهة مستجيبة تعمل بكفاءة على الأجهزة اللوحية وشاشات اللمس.
+
+### 🖨️ طباعة متقدمة | Advanced Printing
+دعم العديد من أنواع الطابعات مع خيارات طباعة مرنة.
+
+### 📤 تصدير البيانات | Data Export
+تصدير التقارير والبيانات إلى صيغ متعددة (CSV, PDF).
+
+---
+
+## المساهمة | Contributing
+
+نرحب بالمساهمات! يرجى:
+1. Fork المشروع
+2. إنشاء branch للميزة الجديدة
+3. Commit التغييرات
+4. Push للـ branch
+5. فتح Pull Request
+
+---
+
+## الترخيص | License
+
+هذا المشروع مرخص تحت MIT License.
+
+---
+
+## الدعم | Support
+
+للمساعدة والدعم، يرجى فتح issue في المشروع أو التواصل معنا عبر البريد الإلكتروني.
+
+---
+
+**تم بناء هذا المشروع بواسطة فريق متخصص في حلول نقاط البيع الحديثة.**
+
+**Built with ❤️ by a specialized team in modern POS solutions.**
