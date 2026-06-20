@@ -10,6 +10,9 @@ import POSPage from "./pages/POSPage";
 import ProductsPage from "./pages/ProductsPage";
 import ReportsPage from "./pages/ReportsPage";
 import StaffPage from "./pages/StaffPage";
+import CustomersPage from "./pages/CustomersPage";
+import SuppliersPage from "./pages/SuppliersPage";
+import SettingsPage from "./pages/SettingsPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 
@@ -24,38 +27,13 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><POSPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/products"
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AppLayout><ProductsPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/reports"
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AppLayout><ReportsPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/staff"
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AppLayout><StaffPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/" element={<ProtectedRoute><AppLayout><POSPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/products" element={<ProtectedRoute requiredRole="admin"><AppLayout><ProductsPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/customers" element={<ProtectedRoute><AppLayout><CustomersPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/suppliers" element={<ProtectedRoute requiredRole="admin"><AppLayout><SuppliersPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute requiredRole="admin"><AppLayout><ReportsPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/staff" element={<ProtectedRoute requiredRole="admin"><AppLayout><StaffPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute requiredRole="admin"><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

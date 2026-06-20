@@ -11,24 +11,34 @@ export function useSales() {
     subtotal: number;
     discount: number;
     discountAmount: number;
+    tax_amount?: number;
     total: number;
     paymentMethod: "cash" | "card";
     cashReceived?: number;
     change?: number;
-  }) => {
+    customer_id?: string | null;
+  }): Promise<{ ok: boolean; invoice_number?: string }> => {
     if (!user) {
       toast.error("يجب تسجيل الدخول أولاً");
-      return false;
+      return { ok: false };
     }
+
+    // Generate sequential invoice number
+    const { data: invData } = await (supabase as any).rpc("generate_invoice_number");
+    const invoice_number = invData || `INV-${Date.now()}`;
 
     const { error } = await (supabase as any).from("sales").insert({
       cashier_id: user.id,
+      invoice_number,
+      customer_id: sale.customer_id || null,
       items: sale.items.map((item) => ({
         product_id: item.product.id,
         name: item.product.name,
         price: item.product.price,
         quantity: item.quantity,
       })),
+      subtotal: sale.subtotal,
+      tax_amount: sale.tax_amount || 0,
       total: sale.total,
       discount: sale.discount,
       payment_method: sale.paymentMethod,
@@ -37,9 +47,34 @@ export function useSales() {
     if (error) {
       toast.error("خطأ في حفظ عملية البيع");
       console.error(error);
-      return false;
+      return { ok: false };
     }
-    return true;
+
+    // Update customer loyalty points and total purchases
+    if (sale.customer_id) {
+      const { data: cust } = await (supabase as any)
+        .from("customers")
+        .select("loyalty_points, total_purchases")
+        .eq("id", sale.customer_id)
+        .maybeSingle();
+      if (cust) {
+        const { data: settings } = await (supabase as any)
+          .from("store_settings")
+          .select("loyalty_points_per_unit")
+          .limit(1)
+          .maybeSingle();
+        const rate = Number(settings?.loyalty_points_per_unit ?? 0.01);
+        await (supabase as any)
+          .from("customers")
+          .update({
+            loyalty_points: Math.floor((cust.loyalty_points || 0) + sale.total * rate),
+            total_purchases: Number(cust.total_purchases || 0) + sale.total,
+          })
+          .eq("id", sale.customer_id);
+      }
+    }
+
+    return { ok: true, invoice_number };
   };
 
   return { saveSale };
