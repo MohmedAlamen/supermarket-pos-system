@@ -20,7 +20,7 @@ const ProductsPage = () => {
   const [search, setSearch] = useState("");
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", barcode: "", price: "", stock: "", category: "" });
+  const [form, setForm] = useState({ name: "", barcode: "", price: "", cost_price: "", stock: "", category: "" });
 
   const filtered = products.filter(
     (p) => p.name.includes(search) || p.barcode.includes(search)
@@ -30,7 +30,7 @@ const ProductsPage = () => {
 
   const openAdd = () => {
     setEditProduct(null);
-    setForm({ name: "", barcode: "", price: "", stock: "", category: catOptions[0] || "" });
+    setForm({ name: "", barcode: "", price: "", cost_price: "", stock: "", category: catOptions[0] || "" });
     setIsDialogOpen(true);
   };
 
@@ -40,6 +40,7 @@ const ProductsPage = () => {
       name: product.name,
       barcode: product.barcode,
       price: product.price.toString(),
+      cost_price: (product.cost_price || 0).toString(),
       stock: product.stock.toString(),
       category: product.category,
     });
@@ -48,22 +49,18 @@ const ProductsPage = () => {
 
   const handleSave = async () => {
     if (!form.name || !form.price) return;
+    const payload = {
+      name: form.name,
+      barcode: form.barcode,
+      price: parseFloat(form.price),
+      cost_price: parseFloat(form.cost_price) || 0,
+      stock: parseInt(form.stock) || 0,
+      category: form.category,
+    };
     if (editProduct) {
-      await updateProduct(editProduct.id, {
-        name: form.name,
-        barcode: form.barcode,
-        price: parseFloat(form.price),
-        stock: parseInt(form.stock) || 0,
-        category: form.category,
-      });
+      await updateProduct(editProduct.id, payload);
     } else {
-      await addProduct({
-        name: form.name,
-        barcode: form.barcode,
-        price: parseFloat(form.price),
-        stock: parseInt(form.stock) || 0,
-        category: form.category,
-      });
+      await addProduct(payload);
     }
     setIsDialogOpen(false);
   };
@@ -109,13 +106,17 @@ const ProductsPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>السعر *</Label>
+                  <Label>سعر البيع *</Label>
                   <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="bg-secondary border-border mt-1" />
                 </div>
                 <div>
-                  <Label>المخزون</Label>
-                  <Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} className="bg-secondary border-border mt-1" />
+                  <Label>سعر التكلفة</Label>
+                  <Input type="number" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} className="bg-secondary border-border mt-1" />
                 </div>
+              </div>
+              <div>
+                <Label>المخزون</Label>
+                <Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} className="bg-secondary border-border mt-1" />
               </div>
               <div>
                 <Label>التصنيف</Label>

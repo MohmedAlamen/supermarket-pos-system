@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt, Loader2, ScanLine } from "lucide-react";
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt, Loader2, ScanLine, UserCircle, X } from "lucide-react";
 import ReceiptPrint from "@/components/pos/ReceiptPrint";
 import BarcodeScanner from "@/components/pos/BarcodeScanner";
 import { Input } from "@/components/ui/input";
@@ -7,33 +7,30 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useProducts, useCategories } from "@/hooks/useProducts";
 import { useSales } from "@/hooks/useSales";
-import { Product, CartItem } from "@/types/pos";
+import { useCustomers } from "@/hooks/useCustomers";
+import { useStoreSettings } from "@/hooks/useStoreSettings";
+import { Product, CartItem, Customer } from "@/types/pos";
 import { toast } from "sonner";
 
 const POSPage = () => {
   const { products, loading } = useProducts();
   const categories = useCategories(products);
   const { saveSale } = useSales();
+  const { customers } = useCustomers();
+  const { settings } = useStoreSettings();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("الكل");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState(0);
   const [cashReceived, setCashReceived] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showCustomerList, setShowCustomerList] = useState(false);
   const barcodeBuffer = useRef("");
   const barcodeTimer = useRef<ReturnType<typeof setTimeout>>();
   const [showCheckout, setShowCheckout] = useState(false);
-  const [lastSale, setLastSale] = useState<{
-    items: CartItem[];
-    subtotal: number;
-    discount: number;
-    discountAmount: number;
-    total: number;
-    paymentMethod: "cash" | "card";
-    cashReceived?: number;
-    change?: number;
-    date: Date;
-  } | null>(null);
+  const [lastSale, setLastSale] = useState<any>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const filteredProducts = useMemo(() => {
@@ -43,6 +40,11 @@ const POSPage = () => {
       return matchSearch && matchCategory;
     });
   }, [search, selectedCategory, products]);
+
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch) return customers.slice(0, 5);
+    return customers.filter((c) => c.name.includes(customerSearch) || c.phone.includes(customerSearch)).slice(0, 8);
+  }, [customerSearch, customers]);
 
   const handleBarcodeScan = useCallback((barcode: string) => {
     const product = products.find((p) => p.barcode === barcode);
@@ -54,18 +56,15 @@ const POSPage = () => {
     }
   }, [products]);
 
-  // Detect physical barcode scanner (rapid keyboard input)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
-
       if (e.key === "Enter" && barcodeBuffer.current.length > 3) {
         handleBarcodeScan(barcodeBuffer.current);
         barcodeBuffer.current = "";
         return;
       }
-
       if (e.key.length === 1) {
         barcodeBuffer.current += e.key;
         clearTimeout(barcodeTimer.current);
@@ -84,26 +83,14 @@ const POSPage = () => {
           toast.error("الكمية المطلوبة غير متوفرة في المخزون");
           return prev;
         }
-        return prev.map((item) =>
-          item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
+        return prev.map((item) => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
       }
       return [...prev, { product, quantity: 1 }];
     });
   };
 
   const updateQuantity = (productId: string, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((item) =>
-          item.product.id === productId
-            ? { ...item, quantity: item.quantity + delta }
-            : item
-        )
-        .filter((item) => item.quantity > 0)
-    );
+    setCart((prev) => prev.map((item) => item.product.id === productId ? { ...item, quantity: item.quantity + delta } : item).filter((item) => item.quantity > 0));
   };
 
   const removeFromCart = (productId: string) => {
@@ -112,65 +99,70 @@ const POSPage = () => {
 
   const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const discountAmount = (subtotal * discount) / 100;
-  const total = subtotal - discountAmount;
+  const afterDiscount = subtotal - discountAmount;
+  const taxRate = Number(settings.tax_rate) || 0;
+  const taxAmount = (afterDiscount * taxRate) / 100;
+  const total = afterDiscount + taxAmount;
   const change = cashReceived ? parseFloat(cashReceived) - total : 0;
 
   const completeSale = async (method: "cash" | "card") => {
-    if (cart.length === 0) {
-      toast.error("السلة فارغة");
-      return;
-    }
+    if (cart.length === 0) { toast.error("السلة فارغة"); return; }
     if (method === "cash" && (!cashReceived || parseFloat(cashReceived) < total)) {
       toast.error("المبلغ المدفوع أقل من الإجمالي");
       return;
     }
 
-    const saleData = {
+    const saved = await saveSale({
       items: [...cart],
       subtotal,
       discount,
       discountAmount,
+      tax_amount: taxAmount,
+      total,
+      paymentMethod: method,
+      cashReceived: method === "cash" ? parseFloat(cashReceived) : undefined,
+      change: method === "cash" ? parseFloat(cashReceived) - total : undefined,
+      customer_id: selectedCustomer?.id || null,
+    });
+
+    if (!saved.ok) return;
+
+    setLastSale({
+      items: [...cart],
+      subtotal,
+      discount,
+      discountAmount,
+      tax_amount: taxAmount,
+      tax_rate: taxRate,
       total,
       paymentMethod: method,
       cashReceived: method === "cash" ? parseFloat(cashReceived) : undefined,
       change: method === "cash" ? parseFloat(cashReceived) - total : undefined,
       date: new Date(),
-    };
+      invoice_number: saved.invoice_number,
+      customer: selectedCustomer,
+      store: settings,
+    });
 
-    const saved = await saveSale(saleData);
-    if (!saved) return;
-
-    setLastSale(saleData);
-    toast.success(`تم إتمام البيع بنجاح! الإجمالي: ${total.toFixed(2)} ر.س`);
+    toast.success(`تم إتمام البيع! فاتورة: ${saved.invoice_number}`);
     setCart([]);
     setDiscount(0);
     setCashReceived("");
+    setSelectedCustomer(null);
     setShowCheckout(false);
-
     setTimeout(() => window.print(), 300);
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-[calc(100vh-3rem)]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="flex items-center justify-center h-[calc(100vh-3rem)]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
   return (
     <>
     <div className="flex flex-col lg:flex-row h-[calc(100vh-3rem)] print:hidden">
-      {/* Products Section */}
       <div className="flex-1 flex flex-col p-4 overflow-hidden">
         <div className="flex gap-2 mb-3">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setScannerOpen(true)}
-            className="shrink-0 border-primary text-primary hover:bg-primary/10"
-            title="مسح الباركود"
-          >
+          <Button variant="outline" size="icon" onClick={() => setScannerOpen(true)} className="shrink-0 border-primary text-primary hover:bg-primary/10" title="مسح الباركود">
             <ScanLine className="h-5 w-5" />
           </Button>
           <div className="relative flex-1">
@@ -180,54 +172,30 @@ const POSPage = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pr-10 bg-card border-border"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && search.trim()) {
-                  handleBarcodeScan(search.trim());
-                  setSearch("");
-                }
-              }}
+              onKeyDown={(e) => { if (e.key === "Enter" && search.trim()) { handleBarcodeScan(search.trim()); setSearch(""); } }}
             />
           </div>
         </div>
 
         <div className="flex gap-2 mb-3 overflow-x-auto pb-2 scrollbar-hide">
           {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
-                selectedCategory === cat
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-muted"
-              }`}
-            >
-              {cat}
-            </button>
+            <button key={cat} onClick={() => setSelectedCategory(cat)} className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${selectedCategory === cat ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-muted"}`}>{cat}</button>
           ))}
         </div>
 
         <div className="flex-1 overflow-y-auto">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
             {filteredProducts.map((product) => (
-              <button
-                key={product.id}
-                onClick={() => addToCart(product)}
-                className="bg-card rounded-lg p-3 text-right hover:ring-2 hover:ring-primary/50 transition-all group"
-              >
-                <p className="font-semibold text-sm leading-tight mb-1 group-hover:text-primary transition-colors">
-                  {product.name}
-                </p>
+              <button key={product.id} onClick={() => addToCart(product)} className="bg-card rounded-lg p-3 text-right hover:ring-2 hover:ring-primary/50 transition-all group">
+                <p className="font-semibold text-sm leading-tight mb-1 group-hover:text-primary transition-colors">{product.name}</p>
                 <p className="text-primary font-bold text-lg">{product.price} ر.س</p>
-                <Badge variant={product.stock < 10 ? "destructive" : "secondary"} className="mt-1 text-xs">
-                  المخزون: {product.stock}
-                </Badge>
+                <Badge variant={product.stock < 10 ? "destructive" : "secondary"} className="mt-1 text-xs">المخزون: {product.stock}</Badge>
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Cart Section */}
       <div className="w-full lg:w-96 bg-card border-r border-border flex flex-col">
         <div className="p-4 border-b border-border">
           <h2 className="font-bold text-lg flex items-center gap-2">
@@ -235,6 +203,43 @@ const POSPage = () => {
             الفاتورة
             <Badge variant="secondary" className="mr-auto">{cart.length}</Badge>
           </h2>
+        </div>
+
+        {/* Customer Selector */}
+        <div className="p-3 border-b border-border relative">
+          {selectedCustomer ? (
+            <div className="flex items-center justify-between bg-primary/10 rounded-md px-3 py-2">
+              <button onClick={() => setSelectedCustomer(null)} className="text-destructive">
+                <X className="h-4 w-4" />
+              </button>
+              <div className="text-right">
+                <p className="font-semibold text-sm">{selectedCustomer.name}</p>
+                <p className="text-xs text-muted-foreground">نقاط: {selectedCustomer.loyalty_points}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="relative">
+              <UserCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="بحث عن عميل (اختياري)..."
+                value={customerSearch}
+                onChange={(e) => { setCustomerSearch(e.target.value); setShowCustomerList(true); }}
+                onFocus={() => setShowCustomerList(true)}
+                onBlur={() => setTimeout(() => setShowCustomerList(false), 200)}
+                className="pr-10 bg-secondary border-border h-9 text-sm"
+              />
+              {showCustomerList && filteredCustomers.length > 0 && (
+                <div className="absolute z-10 top-full mt-1 right-0 left-0 bg-popover border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                  {filteredCustomers.map((c) => (
+                    <button key={c.id} onMouseDown={() => { setSelectedCustomer(c); setCustomerSearch(""); setShowCustomerList(false); }} className="w-full text-right px-3 py-2 hover:bg-muted text-sm border-b border-border/50 last:border-0">
+                      <p className="font-medium">{c.name}</p>
+                      <p className="text-xs text-muted-foreground">{c.phone} • {c.loyalty_points} نقطة</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -255,13 +260,9 @@ const POSPage = () => {
                 <div className="flex items-center justify-between">
                   <p className="font-bold text-primary">{(item.product.price * item.quantity).toFixed(2)} ر.س</p>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => updateQuantity(item.product.id, -1)} className="bg-muted hover:bg-border rounded-md p-1">
-                      <Minus className="h-4 w-4" />
-                    </button>
+                    <button onClick={() => updateQuantity(item.product.id, -1)} className="bg-muted hover:bg-border rounded-md p-1"><Minus className="h-4 w-4" /></button>
                     <span className="w-8 text-center font-bold">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.product.id, 1)} className="bg-muted hover:bg-border rounded-md p-1">
-                      <Plus className="h-4 w-4" />
-                    </button>
+                    <button onClick={() => updateQuantity(item.product.id, 1)} className="bg-muted hover:bg-border rounded-md p-1"><Plus className="h-4 w-4" /></button>
                   </div>
                 </div>
               </div>
@@ -272,14 +273,7 @@ const POSPage = () => {
         <div className="p-4 border-t border-border space-y-3">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">خصم %</span>
-            <Input
-              type="number"
-              value={discount || ""}
-              onChange={(e) => setDiscount(Number(e.target.value))}
-              className="w-20 h-8 text-center bg-secondary border-border"
-              min={0}
-              max={100}
-            />
+            <Input type="number" value={discount || ""} onChange={(e) => setDiscount(Number(e.target.value))} className="w-20 h-8 text-center bg-secondary border-border" min={0} max={100} />
           </div>
 
           <div className="space-y-1 text-sm">
@@ -293,6 +287,12 @@ const POSPage = () => {
                 <span>الخصم ({discount}%)</span>
               </div>
             )}
+            {taxRate > 0 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>+{taxAmount.toFixed(2)} ر.س</span>
+                <span>ضريبة ({taxRate}%)</span>
+              </div>
+            )}
             <div className="flex justify-between text-lg font-bold pt-2 border-t border-border">
               <span className="text-primary">{total.toFixed(2)} ر.س</span>
               <span>الإجمالي</span>
@@ -301,40 +301,18 @@ const POSPage = () => {
 
           {showCheckout ? (
             <div className="space-y-2 animate-slide-in">
-              <Input
-                type="number"
-                placeholder="المبلغ المدفوع"
-                value={cashReceived}
-                onChange={(e) => setCashReceived(e.target.value)}
-                className="bg-secondary border-border text-center text-lg"
-              />
+              <Input type="number" placeholder="المبلغ المدفوع" value={cashReceived} onChange={(e) => setCashReceived(e.target.value)} className="bg-secondary border-border text-center text-lg" />
               {cashReceived && parseFloat(cashReceived) >= total && (
-                <p className="text-center text-success font-bold">
-                  الباقي: {change.toFixed(2)} ر.س
-                </p>
+                <p className="text-center text-success font-bold">الباقي: {change.toFixed(2)} ر.س</p>
               )}
               <div className="flex gap-2">
-                <Button onClick={() => completeSale("cash")} className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90">
-                  <Banknote className="h-4 w-4 ml-1" />
-                  نقدي
-                </Button>
-                <Button onClick={() => completeSale("card")} variant="outline" className="flex-1 border-primary text-primary hover:bg-primary/10">
-                  <CreditCard className="h-4 w-4 ml-1" />
-                  بطاقة
-                </Button>
+                <Button onClick={() => completeSale("cash")} className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"><Banknote className="h-4 w-4 ml-1" />نقدي</Button>
+                <Button onClick={() => completeSale("card")} variant="outline" className="flex-1 border-primary text-primary hover:bg-primary/10"><CreditCard className="h-4 w-4 ml-1" />بطاقة</Button>
               </div>
-              <Button variant="ghost" onClick={() => setShowCheckout(false)} className="w-full text-muted-foreground">
-                إلغاء
-              </Button>
+              <Button variant="ghost" onClick={() => setShowCheckout(false)} className="w-full text-muted-foreground">إلغاء</Button>
             </div>
           ) : (
-            <Button
-              onClick={() => setShowCheckout(true)}
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-lg h-12"
-              disabled={cart.length === 0}
-            >
-              إتمام البيع
-            </Button>
+            <Button onClick={() => setShowCheckout(true)} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-lg h-12" disabled={cart.length === 0}>إتمام البيع</Button>
           )}
         </div>
       </div>

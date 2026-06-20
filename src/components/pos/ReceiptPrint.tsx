@@ -1,4 +1,4 @@
-import { CartItem } from "@/types/pos";
+import { CartItem, Customer, StoreSettings } from "@/types/pos";
 import { forwardRef } from "react";
 
 interface ReceiptProps {
@@ -6,20 +6,38 @@ interface ReceiptProps {
   subtotal: number;
   discount: number;
   discountAmount: number;
+  tax_amount?: number;
+  tax_rate?: number;
   total: number;
   paymentMethod: "cash" | "card";
   cashReceived?: number;
   change?: number;
   date: Date;
+  invoice_number?: string;
+  customer?: Customer | null;
+  store?: StoreSettings;
 }
 
 const ReceiptPrint = forwardRef<HTMLDivElement, ReceiptProps>(
-  ({ items, subtotal, discount, discountAmount, total, paymentMethod, cashReceived, change, date }, ref) => {
+  ({ items, subtotal, discount, discountAmount, tax_amount = 0, tax_rate = 0, total, paymentMethod, cashReceived, change, date, invoice_number, customer, store }, ref) => {
     return (
-      <div ref={ref} className="hidden print:block p-6 max-w-[300px] mx-auto font-mono text-xs" dir="rtl">
-        <div className="text-center mb-4">
-          <h1 className="text-lg font-bold">نقطة البيع</h1>
+      <div ref={ref} className="hidden print:block p-6 max-w-[320px] mx-auto font-mono text-xs" dir="rtl">
+        <div className="text-center mb-3">
+          <h1 className="text-lg font-bold">{store?.store_name || "نقطة البيع"}</h1>
+          {store?.address && <p className="text-[10px]">{store.address}</p>}
+          {store?.phone && <p className="text-[10px]">هاتف: {store.phone}</p>}
+          {store?.tax_number && <p className="text-[10px]">الرقم الضريبي: {store.tax_number}</p>}
+          <div className="border-b border-dashed border-black my-2" />
+          <p className="font-bold">فاتورة ضريبية</p>
+          {invoice_number && <p className="text-[10px]">رقم الفاتورة: {invoice_number}</p>}
           <p className="text-[10px]">{date.toLocaleDateString("ar-SA")} - {date.toLocaleTimeString("ar-SA")}</p>
+          {customer && (
+            <>
+              <div className="border-b border-dashed border-black my-1" />
+              <p className="text-[10px]">العميل: {customer.name}</p>
+              {customer.phone && <p className="text-[10px]">{customer.phone}</p>}
+            </>
+          )}
           <div className="border-b border-dashed border-black my-2" />
         </div>
 
@@ -53,7 +71,13 @@ const ReceiptPrint = forwardRef<HTMLDivElement, ReceiptProps>(
               <span>الخصم ({discount}%)</span>
             </div>
           )}
-          <div className="flex justify-between font-bold border-t border-dashed border-black pt-1">
+          {tax_amount > 0 && (
+            <div className="flex justify-between">
+              <span>{tax_amount.toFixed(2)} ر.س</span>
+              <span>ضريبة القيمة المضافة ({tax_rate}%)</span>
+            </div>
+          )}
+          <div className="flex justify-between font-bold border-t border-dashed border-black pt-1 text-sm">
             <span>{total.toFixed(2)} ر.س</span>
             <span>الإجمالي</span>
           </div>
@@ -77,6 +101,7 @@ const ReceiptPrint = forwardRef<HTMLDivElement, ReceiptProps>(
 
         <div className="text-center mt-4 border-t border-dashed border-black pt-2">
           <p>شكراً لزيارتكم</p>
+          {store?.email && <p className="text-[10px] mt-1">{store.email}</p>}
         </div>
       </div>
     );

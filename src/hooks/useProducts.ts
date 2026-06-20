@@ -24,6 +24,7 @@ export function useProducts() {
           name: p.name,
           barcode: p.barcode || "",
           price: Number(p.price),
+          cost_price: Number(p.cost_price || 0),
           stock: p.stock,
           category: p.category,
         }))
@@ -41,6 +42,7 @@ export function useProducts() {
       name: product.name,
       barcode: product.barcode,
       price: product.price,
+      cost_price: product.cost_price || 0,
       stock: product.stock,
       category: product.category,
     });
@@ -61,6 +63,7 @@ export function useProducts() {
         name: updates.name,
         barcode: updates.barcode,
         price: updates.price,
+        cost_price: updates.cost_price,
         stock: updates.stock,
         category: updates.category,
       })
