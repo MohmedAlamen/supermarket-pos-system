@@ -11,10 +11,10 @@ import { usePurchases, PurchaseItem } from "@/hooks/usePurchases";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useProducts } from "@/hooks/useProducts";
 
-const SuppliersPage = () => {
+const PurchasesPage = () => {
   const { purchases, loading, addPurchase } = usePurchases();
   const { suppliers } = useSuppliers();
-  const { products, refresh } = useProducts() as any;
+  const { products, fetchProducts } = useProducts();
 
   const [open, setOpen] = useState(false);
   const [supplierId, setSupplierId] = useState<string>("");
@@ -58,7 +58,7 @@ const SuppliersPage = () => {
     if (ok) {
       setOpen(false);
       reset();
-      refresh?.();
+      fetchProducts();
     }
   };
 
@@ -219,4 +219,4 @@ const SuppliersPage = () => {
   );
 };
 
-export default SuppliersPage;
+export default PurchasesPage;
