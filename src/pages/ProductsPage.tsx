@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Edit2, Trash2, Search, Package, Loader2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, Package, Loader2, Tag } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { useProducts, useCategories } from "@/hooks/useProducts";
 import { Product } from "@/types/pos";
+import BarcodeLabelPrint from "@/components/BarcodeLabelPrint";
 
 const ProductsPage = () => {
   const { products, loading, addProduct, updateProduct, deleteProduct } = useProducts();
@@ -20,6 +21,7 @@ const ProductsPage = () => {
   const [search, setSearch] = useState("");
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [labelProduct, setLabelProduct] = useState<Product | null>(null);
   const [form, setForm] = useState({ name: "", barcode: "", price: "", cost_price: "", stock: "", category: "" });
 
   const filtered = products.filter(
@@ -175,6 +177,9 @@ const ProductsPage = () => {
                   </td>
                   <td className="p-3">
                     <div className="flex items-center justify-center gap-1">
+                      <button onClick={() => setLabelProduct(product)} className="p-1.5 hover:bg-muted rounded-md text-primary" title="طباعة ملصق">
+                        <Tag className="h-4 w-4" />
+                      </button>
                       <button onClick={() => openEdit(product)} className="p-1.5 hover:bg-muted rounded-md text-info">
                         <Edit2 className="h-4 w-4" />
                       </button>
@@ -191,6 +196,8 @@ const ProductsPage = () => {
       </div>
 
       <p className="text-muted-foreground text-sm mt-3">إجمالي المنتجات: {filtered.length}</p>
+
+      <BarcodeLabelPrint open={!!labelProduct} onClose={() => setLabelProduct(null)} product={labelProduct} />
     </div>
   );
 };
