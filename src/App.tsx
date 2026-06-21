@@ -13,6 +13,7 @@ import StaffPage from "./pages/StaffPage";
 import CustomersPage from "./pages/CustomersPage";
 import SuppliersPage from "./pages/SuppliersPage";
 import SettingsPage from "./pages/SettingsPage";
+import PurchasesPage from "./pages/PurchasesPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/products" element={<ProtectedRoute requiredRole="admin"><AppLayout><ProductsPage /></AppLayout></ProtectedRoute>} />
             <Route path="/customers" element={<ProtectedRoute><AppLayout><CustomersPage /></AppLayout></ProtectedRoute>} />
             <Route path="/suppliers" element={<ProtectedRoute requiredRole="admin"><AppLayout><SuppliersPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/purchases" element={<ProtectedRoute requiredRole="admin"><AppLayout><PurchasesPage /></AppLayout></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute requiredRole="admin"><AppLayout><ReportsPage /></AppLayout></ProtectedRoute>} />
             <Route path="/staff" element={<ProtectedRoute requiredRole="admin"><AppLayout><StaffPage /></AppLayout></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute requiredRole="admin"><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
