@@ -43,14 +43,19 @@ const ReportsPage = () => {
   });
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().split("T")[0]);
 
+  const { currentBranch } = useBranch();
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      let salesQ = (supabase as any).from("sales").select("*")
+        .gte("created_at", `${dateFrom}T00:00:00`)
+        .lte("created_at", `${dateTo}T23:59:59`)
+        .order("created_at", { ascending: false });
+      if (currentBranch) salesQ = salesQ.eq("branch_id", currentBranch.id);
+
       const [salesRes, prodRes] = await Promise.all([
-        (supabase as any).from("sales").select("*")
-          .gte("created_at", `${dateFrom}T00:00:00`)
-          .lte("created_at", `${dateTo}T23:59:59`)
-          .order("created_at", { ascending: false }),
+        salesQ,
         (supabase as any).from("products").select("id, cost_price"),
       ]);
       if (salesRes.error) toast.error("خطأ في تحميل البيانات");
@@ -62,7 +67,7 @@ const ReportsPage = () => {
       setLoading(false);
     };
     load();
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, currentBranch?.id]);
 
   const metrics = useMemo(() => {
     const totalRevenue = sales.reduce((s, x) => s + Number(x.total), 0);
