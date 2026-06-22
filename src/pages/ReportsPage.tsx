@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { exportToExcel, exportToPDF } from "@/lib/exportUtils";
+import { useBranch } from "@/contexts/BranchContext";
 
 interface SaleItem {
   name: string;
