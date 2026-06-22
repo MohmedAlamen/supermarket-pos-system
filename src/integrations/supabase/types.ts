@@ -14,6 +14,90 @@ export type Database = {
   }
   public: {
     Tables: {
+      branch_stock: {
+        Row: {
+          branch_id: string
+          created_at: string
+          id: string
+          product_id: string
+          stock: number
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          id?: string
+          product_id: string
+          stock?: number
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+          stock?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branch_stock_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "branch_stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      branches: {
+        Row: {
+          address: string | null
+          code: string
+          created_at: string
+          id: string
+          invoice_counter: number
+          invoice_prefix: string
+          is_active: boolean
+          name: string
+          phone: string | null
+          tax_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          invoice_counter?: number
+          invoice_prefix?: string
+          is_active?: boolean
+          name: string
+          phone?: string | null
+          tax_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          invoice_counter?: number
+          invoice_prefix?: string
+          is_active?: boolean
+          name?: string
+          phone?: string | null
+          tax_number?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
@@ -89,26 +173,38 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          default_branch_id: string | null
           full_name: string
           id: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          default_branch_id?: string | null
           full_name?: string
           id?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          default_branch_id?: string | null
           full_name?: string
           id?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_default_branch_id_fkey"
+            columns: ["default_branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       purchases: {
         Row: {
+          branch_id: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -121,6 +217,7 @@ export type Database = {
           total: number
         }
         Insert: {
+          branch_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -133,6 +230,7 @@ export type Database = {
           total?: number
         }
         Update: {
+          branch_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -146,6 +244,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "purchases_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "purchases_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
@@ -156,6 +261,7 @@ export type Database = {
       }
       sales: {
         Row: {
+          branch_id: string | null
           cashier_id: string | null
           created_at: string
           customer_id: string | null
@@ -169,6 +275,7 @@ export type Database = {
           total: number
         }
         Insert: {
+          branch_id?: string | null
           cashier_id?: string | null
           created_at?: string
           customer_id?: string | null
@@ -182,6 +289,7 @@ export type Database = {
           total?: number
         }
         Update: {
+          branch_id?: string | null
           cashier_id?: string | null
           created_at?: string
           customer_id?: string | null
@@ -195,6 +303,13 @@ export type Database = {
           total?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_customer_id_fkey"
             columns: ["customer_id"]
@@ -308,6 +423,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_branch_invoice_number: {
+        Args: { _branch_id: string }
+        Returns: string
+      }
       generate_invoice_number: { Args: never; Returns: string }
       has_role: {
         Args: {
