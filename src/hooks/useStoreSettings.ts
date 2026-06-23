@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { StoreSettings } from "@/types/pos";
 import { toast } from "sonner";
+import { cacheSettings, loadCachedSettings } from "@/lib/offlineDB";
 
 const DEFAULTS: StoreSettings = {
   id: "",
@@ -21,23 +22,31 @@ export function useStoreSettings() {
 
   const fetch = useCallback(async () => {
     setLoading(true);
-    const { data } = await (supabase as any)
-      .from("store_settings")
-      .select("*")
-      .limit(1)
-      .maybeSingle();
-    if (data) {
-      setSettings({
-        id: data.id,
-        store_name: data.store_name || DEFAULTS.store_name,
-        tax_number: data.tax_number || "",
-        tax_rate: Number(data.tax_rate) || 0,
-        address: data.address || "",
-        phone: data.phone || "",
-        email: data.email || "",
-        invoice_counter: data.invoice_counter || 1000,
-        loyalty_points_per_unit: Number(data.loyalty_points_per_unit) || 0,
-      });
+    try {
+      const { data, error } = await (supabase as any)
+        .from("store_settings")
+        .select("*")
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      if (data) {
+        const next: StoreSettings = {
+          id: data.id,
+          store_name: data.store_name || DEFAULTS.store_name,
+          tax_number: data.tax_number || "",
+          tax_rate: Number(data.tax_rate) || 0,
+          address: data.address || "",
+          phone: data.phone || "",
+          email: data.email || "",
+          invoice_counter: data.invoice_counter || 1000,
+          loyalty_points_per_unit: Number(data.loyalty_points_per_unit) || 0,
+        };
+        setSettings(next);
+        cacheSettings(next).catch(() => {});
+      }
+    } catch {
+      const cached = await loadCachedSettings();
+      if (cached) setSettings(cached);
     }
     setLoading(false);
   }, []);
