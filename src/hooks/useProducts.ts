@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Product } from "@/types/pos";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/BranchContext";
+import { cacheProducts, loadCachedProducts, adjustCachedStock } from "@/lib/offlineDB";
 
 export function useProducts() {
   const { currentBranch } = useBranch();
@@ -12,25 +13,20 @@ export function useProducts() {
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
-    const [prodRes, stockRes] = await Promise.all([
-      (supabase as any).from("products").select("*").order("name"),
-      branchId
-        ? (supabase as any).from("branch_stock").select("product_id, stock").eq("branch_id", branchId)
-        : Promise.resolve({ data: [] }),
-    ]);
+    try {
+      const [prodRes, stockRes] = await Promise.all([
+        (supabase as any).from("products").select("*").order("name"),
+        branchId
+          ? (supabase as any).from("branch_stock").select("product_id, stock").eq("branch_id", branchId)
+          : Promise.resolve({ data: [] }),
+      ]);
 
-    if (prodRes.error) {
-      toast.error("خطأ في تحميل المنتجات");
-      console.error(prodRes.error);
-      setLoading(false);
-      return;
-    }
+      if (prodRes.error) throw prodRes.error;
 
-    const stockMap: Record<string, number> = {};
-    (stockRes.data || []).forEach((r: any) => { stockMap[r.product_id] = Number(r.stock) || 0; });
+      const stockMap: Record<string, number> = {};
+      (stockRes.data || []).forEach((r: any) => { stockMap[r.product_id] = Number(r.stock) || 0; });
 
-    setProducts(
-      (prodRes.data || []).map((p: any) => ({
+      const mapped: Product[] = (prodRes.data || []).map((p: any) => ({
         id: p.id,
         name: p.name,
         barcode: p.barcode || "",
@@ -38,9 +34,21 @@ export function useProducts() {
         cost_price: Number(p.cost_price || 0),
         stock: branchId ? (stockMap[p.id] ?? 0) : Number(p.stock || 0),
         category: p.category,
-      }))
-    );
-    setLoading(false);
+      }));
+      setProducts(mapped);
+      cacheProducts(mapped, branchId).catch(() => {});
+    } catch (err) {
+      console.warn("Loading products from offline cache", err);
+      const cached = await loadCachedProducts(branchId);
+      if (cached.length > 0) {
+        setProducts(cached);
+        toast.info("تم تحميل المنتجات من الذاكرة المحلية (وضع عدم الاتصال)");
+      } else {
+        toast.error("تعذر تحميل المنتجات");
+      }
+    } finally {
+      setLoading(false);
+    }
   }, [branchId]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
@@ -93,7 +101,12 @@ export function useProducts() {
     return true;
   };
 
-  return { products, loading, fetchProducts, addProduct, updateProduct, deleteProduct };
+  const decrementLocalStock = useCallback((productId: string, qty: number) => {
+    setProducts((prev) => prev.map((p) => p.id === productId ? { ...p, stock: Math.max(0, p.stock - qty) } : p));
+    if (branchId) adjustCachedStock(branchId, productId, -qty).catch(() => {});
+  }, [branchId]);
+
+  return { products, loading, fetchProducts, addProduct, updateProduct, deleteProduct, decrementLocalStock };
 }
 
 export function useCategories(products: Product[]) {

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Customer } from "@/types/pos";
 import { toast } from "sonner";
+import { cacheCustomers, loadCachedCustomers } from "@/lib/offlineDB";
 
 export function useCustomers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -14,21 +15,22 @@ export function useCustomers() {
       .select("*")
       .order("name");
     if (error) {
-      toast.error("خطأ في تحميل العملاء");
-      console.error(error);
+      const cached = await loadCachedCustomers();
+      if (cached.length > 0) setCustomers(cached);
+      else console.error(error);
     } else {
-      setCustomers(
-        (data || []).map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          phone: c.phone || "",
-          email: c.email || "",
-          address: c.address || "",
-          loyalty_points: c.loyalty_points || 0,
-          total_purchases: Number(c.total_purchases) || 0,
-          notes: c.notes || "",
-        }))
-      );
+      const mapped = (data || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone || "",
+        email: c.email || "",
+        address: c.address || "",
+        loyalty_points: c.loyalty_points || 0,
+        total_purchases: Number(c.total_purchases) || 0,
+        notes: c.notes || "",
+      }));
+      setCustomers(mapped);
+      cacheCustomers(mapped).catch(() => {});
     }
     setLoading(false);
   }, []);
