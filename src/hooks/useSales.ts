@@ -3,8 +3,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useBranch } from "@/contexts/BranchContext";
 import { CartItem } from "@/types/pos";
 import { toast } from "sonner";
-import { enqueueSale, notifyPendingChanged } from "@/lib/offlineDB";
-import { syncPendingSales } from "@/lib/syncService";
+import { enqueueSale } from "@/lib/offlineDB";
+import { syncPendingSales, notifyPendingChanged } from "@/lib/syncService";
 
 function localInvoiceNumber(prefix: string) {
   const d = new Date();
