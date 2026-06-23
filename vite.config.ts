@@ -52,12 +52,12 @@ export default defineConfig(({ mode }) => ({
             },
           },
           {
-            urlPattern: ({ url }) => url.origin === self.location.origin && /\.(?:js|css|woff2)$/.test(url.pathname),
+            urlPattern: /\.(?:js|css|woff2)$/,
             handler: "CacheFirst",
             options: { cacheName: "assets-cache", expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 } },
           },
           {
-            urlPattern: ({ url }) => url.origin === self.location.origin && /\.(?:png|jpg|jpeg|svg|webp|ico)$/.test(url.pathname),
+            urlPattern: /\.(?:png|jpg|jpeg|svg|webp|ico)$/,
             handler: "CacheFirst",
             options: { cacheName: "img-cache", expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 30 } },
           },
