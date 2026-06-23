@@ -8,7 +8,7 @@ export default function OnlineIndicator() {
   const online = useOnlineStatus();
   const [pending, setPending] = useState(0);
 
-  useEffect(() => onPendingChange(setPending), []);
+  useEffect(() => { const off = onPendingChange(setPending); return () => { off; }; }, []);
 
   return (
     <button
