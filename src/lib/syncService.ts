@@ -1,14 +1,20 @@
 import { supabase } from "@/integrations/supabase/client";
-import { pendingSales, removePending, bumpAttempts, pendingCount } from "@/lib/offlineDB";
+import { pendingSales, markSynced, markFailed, pendingCount, type PendingSale } from "@/lib/offlineDB";
 import { toast } from "sonner";
 
 let syncing = false;
 const listeners = new Set<(count: number) => void>();
+const syncedListeners = new Set<(sale: PendingSale) => void>();
 
 export function onPendingChange(cb: (count: number) => void) {
   listeners.add(cb);
   pendingCount().then(cb);
-  return () => listeners.delete(cb);
+  return () => { listeners.delete(cb); };
+}
+
+export function onSaleSynced(cb: (sale: PendingSale) => void) {
+  syncedListeners.add(cb);
+  return () => { syncedListeners.delete(cb); };
 }
 
 export async function notifyPendingChanged() {
@@ -25,7 +31,6 @@ export async function syncPendingSales(): Promise<{ synced: number; failed: numb
     const queue = await pendingSales();
     for (const s of queue) {
       try {
-        // Get real branch invoice number
         const { data: inv, error: invErr } = await (supabase as any)
           .rpc("generate_branch_invoice_number", { _branch_id: s.branch_id });
         if (invErr) throw invErr;
@@ -46,7 +51,6 @@ export async function syncPendingSales(): Promise<{ synced: number; failed: numb
         });
         if (error) throw error;
 
-        // Decrement branch_stock
         for (const it of s.items) {
           const { data: row } = await (supabase as any)
             .from("branch_stock")
@@ -61,11 +65,13 @@ export async function syncPendingSales(): Promise<{ synced: number; failed: numb
           );
         }
 
-        await removePending(s.id!);
+        await markSynced(s.id!, invoice_number);
+        const updated: PendingSale = { ...s, status: "synced", final_invoice_number: invoice_number };
+        syncedListeners.forEach((l) => l(updated));
         synced++;
-      } catch (err) {
+      } catch (err: any) {
         console.error("sync failed for sale", s.id, err);
-        await bumpAttempts(s.id!);
+        await markFailed(s.id!, String(err?.message || err));
         failed++;
       }
     }
@@ -81,7 +87,6 @@ export async function syncPendingSales(): Promise<{ synced: number; failed: numb
 export function initSyncService() {
   if (typeof window === "undefined") return;
   window.addEventListener("online", () => { syncPendingSales(); });
-  // Initial attempt + interval
   setTimeout(() => { syncPendingSales(); }, 1500);
   setInterval(() => { syncPendingSales(); }, 30000);
 }
