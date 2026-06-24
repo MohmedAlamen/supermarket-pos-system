@@ -16,6 +16,7 @@ import SuppliersPage from "./pages/SuppliersPage";
 import SettingsPage from "./pages/SettingsPage";
 import PurchasesPage from "./pages/PurchasesPage";
 import BranchesPage from "./pages/BranchesPage";
+import PendingInvoicesPage from "./pages/PendingInvoicesPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 
@@ -38,6 +39,7 @@ const App = () => (
               <Route path="/purchases" element={<ProtectedRoute requiredRole="admin"><AppLayout><PurchasesPage /></AppLayout></ProtectedRoute>} />
               <Route path="/reports" element={<ProtectedRoute requiredRole="admin"><AppLayout><ReportsPage /></AppLayout></ProtectedRoute>} />
               <Route path="/branches" element={<ProtectedRoute requiredRole="admin"><AppLayout><BranchesPage /></AppLayout></ProtectedRoute>} />
+              <Route path="/pending-invoices" element={<ProtectedRoute><AppLayout><PendingInvoicesPage /></AppLayout></ProtectedRoute>} />
               <Route path="/staff" element={<ProtectedRoute requiredRole="admin"><AppLayout><StaffPage /></AppLayout></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute requiredRole="admin"><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />

@@ -1,8 +1,10 @@
 import { openDB, IDBPDatabase } from "idb";
-import type { Product, CartItem, Customer, StoreSettings } from "@/types/pos";
+import type { Product, Customer, StoreSettings } from "@/types/pos";
 
 const DB_NAME = "pos-offline";
 const DB_VERSION = 1;
+
+export type SaleStatus = "pending" | "synced" | "failed";
 
 export interface PendingSale {
   id?: number;
@@ -16,6 +18,10 @@ export interface PendingSale {
   total: number;
   payment_method: "cash" | "card";
   local_invoice_number: string;
+  final_invoice_number?: string | null;
+  status: SaleStatus;
+  last_error?: string | null;
+  synced_at?: string | null;
   created_at: string;
   attempts: number;
 }
@@ -92,14 +98,52 @@ export async function loadCachedSettings(): Promise<StoreSettings | null> {
   return (await d.get("settings", "store")) || null;
 }
 
-export async function enqueueSale(sale: Omit<PendingSale, "id" | "attempts">) {
+export async function enqueueSale(sale: Omit<PendingSale, "id" | "attempts" | "status">) {
   const d = await db();
-  await d.add("pending_sales", { ...sale, attempts: 0 } as any);
+  await d.add("pending_sales", { ...sale, status: "pending", attempts: 0 } as any);
+}
+
+export async function allSales(): Promise<PendingSale[]> {
+  const d = await db();
+  return (await d.getAll("pending_sales")) as PendingSale[];
 }
 
 export async function pendingSales(): Promise<PendingSale[]> {
+  const all = await allSales();
+  return all.filter((s) => s.status !== "synced");
+}
+
+export async function markSynced(id: number, final_invoice_number: string) {
   const d = await db();
-  return (await d.getAll("pending_sales")) as PendingSale[];
+  const row = await d.get("pending_sales", id);
+  if (row) {
+    row.status = "synced";
+    row.final_invoice_number = final_invoice_number;
+    row.synced_at = new Date().toISOString();
+    row.last_error = null;
+    await d.put("pending_sales", row);
+  }
+}
+
+export async function markFailed(id: number, error: string) {
+  const d = await db();
+  const row = await d.get("pending_sales", id);
+  if (row) {
+    row.status = "failed";
+    row.attempts = (row.attempts || 0) + 1;
+    row.last_error = error;
+    await d.put("pending_sales", row);
+  }
+}
+
+export async function retrySale(id: number) {
+  const d = await db();
+  const row = await d.get("pending_sales", id);
+  if (row && row.status !== "synced") {
+    row.status = "pending";
+    row.last_error = null;
+    await d.put("pending_sales", row);
+  }
 }
 
 export async function removePending(id: number) {
@@ -107,13 +151,7 @@ export async function removePending(id: number) {
   await d.delete("pending_sales", id);
 }
 
-export async function bumpAttempts(id: number) {
-  const d = await db();
-  const row = await d.get("pending_sales", id);
-  if (row) { row.attempts = (row.attempts || 0) + 1; await d.put("pending_sales", row); }
-}
-
 export async function pendingCount() {
-  const d = await db();
-  return await d.count("pending_sales");
+  const all = await allSales();
+  return all.filter((s) => s.status !== "synced").length;
 }
