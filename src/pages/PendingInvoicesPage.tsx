@@ -10,6 +10,9 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { useCustomers } from "@/hooks/useCustomers";
 import ReceiptPrint from "@/components/pos/ReceiptPrint";
+import { isAutoPrintEnabled, setAutoPrintEnabled } from "@/components/AutoPrintSynced";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export default function PendingInvoicesPage() {
@@ -21,6 +24,7 @@ export default function PendingInvoicesPage() {
   const [syncingNow, setSyncingNow] = useState(false);
   const [printSale, setPrintSale] = useState<PendingSale | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
+  const [autoPrint, setAutoPrint] = useState(isAutoPrintEnabled());
 
   const load = async () => {
     setLoading(true);
@@ -148,10 +152,20 @@ export default function PendingInvoicesPage() {
             <h1 className="text-2xl font-bold">فواتير عدم الاتصال</h1>
             <p className="text-sm text-muted-foreground">إدارة الفواتير المحفوظة محلياً ومزامنتها مع الخادم</p>
           </div>
-          <Button onClick={handleSyncAll} disabled={!online || syncingNow || counts.pending + counts.failed === 0}>
-            {syncingNow ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <CloudUpload className="h-4 w-4 ml-2" />}
-            مزامنة الكل
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 border border-border rounded-md px-3 py-1.5">
+              <Switch
+                id="auto-print"
+                checked={autoPrint}
+                onCheckedChange={(v) => { setAutoPrint(v); setAutoPrintEnabled(v); toast.success(v ? "تم تفعيل الطباعة التلقائية" : "تم تعطيل الطباعة التلقائية"); }}
+              />
+              <Label htmlFor="auto-print" className="text-sm cursor-pointer">طباعة تلقائية بعد المزامنة</Label>
+            </div>
+            <Button onClick={handleSyncAll} disabled={!online || syncingNow || counts.pending + counts.failed === 0}>
+              {syncingNow ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <CloudUpload className="h-4 w-4 ml-2" />}
+              مزامنة الكل
+            </Button>
+          </div>
         </div>
 
         {loading ? (

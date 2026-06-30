@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import LowStockAlert from "@/components/LowStockAlert";
 import BranchSelector from "@/components/BranchSelector";
 import OnlineIndicator from "@/components/OnlineIndicator";
+import AutoPrintSynced from "@/components/AutoPrintSynced";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -21,6 +22,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <main className="flex-1 overflow-auto">
             {children}
           </main>
+          <AutoPrintSynced />
         </div>
       </div>
     </SidebarProvider>
