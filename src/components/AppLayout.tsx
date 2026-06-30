@@ -22,6 +22,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <main className="flex-1 overflow-auto">
             {children}
           </main>
+          <AutoPrintSynced />
         </div>
       </div>
     </SidebarProvider>
