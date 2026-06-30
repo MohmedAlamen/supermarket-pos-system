@@ -10,6 +10,9 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { useCustomers } from "@/hooks/useCustomers";
 import ReceiptPrint from "@/components/pos/ReceiptPrint";
+import { isAutoPrintEnabled, setAutoPrintEnabled } from "@/components/AutoPrintSynced";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export default function PendingInvoicesPage() {
