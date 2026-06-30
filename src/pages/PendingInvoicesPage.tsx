@@ -24,6 +24,7 @@ export default function PendingInvoicesPage() {
   const [syncingNow, setSyncingNow] = useState(false);
   const [printSale, setPrintSale] = useState<PendingSale | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
+  const [autoPrint, setAutoPrint] = useState(isAutoPrintEnabled());
 
   const load = async () => {
     setLoading(true);
