@@ -1,6 +1,12 @@
 import { CartItem, Customer, StoreSettings } from "@/types/pos";
 import { forwardRef } from "react";
 
+export interface ReceiptPaymentEntry {
+  method: string;
+  amount: number;
+  reference?: string;
+}
+
 interface ReceiptProps {
   items: CartItem[];
   subtotal: number;
@@ -9,17 +15,29 @@ interface ReceiptProps {
   tax_amount?: number;
   tax_rate?: number;
   total: number;
-  paymentMethod: "cash" | "card";
+  paymentMethod: string;
   cashReceived?: number;
   change?: number;
   date: Date;
   invoice_number?: string;
   customer?: Customer | null;
   store?: StoreSettings;
+  payments?: ReceiptPaymentEntry[];
+  payment_status?: string;
+  payment_reference?: string | null;
+  payment_gateway?: string;
 }
 
+const methodLabel = (m: string) => ({
+  cash: "نقدي", card: "بطاقة", stcpay: "STC Pay", applepay: "Apple Pay", bank: "تحويل بنكي", mixed: "دفع مقسّم",
+} as Record<string, string>)[m] || m;
+
+const statusLabel = (s?: string) => ({
+  paid: "مدفوعة", pending: "معلّقة", failed: "فاشلة", refunded: "مستردة",
+} as Record<string, string>)[s || "paid"] || s;
+
 const ReceiptPrint = forwardRef<HTMLDivElement, ReceiptProps>(
-  ({ items, subtotal, discount, discountAmount, tax_amount = 0, tax_rate = 0, total, paymentMethod, cashReceived, change, date, invoice_number, customer, store }, ref) => {
+  ({ items, subtotal, discount, discountAmount, tax_amount = 0, tax_rate = 0, total, paymentMethod, cashReceived, change, date, invoice_number, customer, store, payments, payment_status, payment_reference, payment_gateway }, ref) => {
     return (
       <div ref={ref} className="hidden print:block p-6 max-w-[320px] mx-auto font-mono text-xs" dir="rtl">
         <div className="text-center mb-3">
