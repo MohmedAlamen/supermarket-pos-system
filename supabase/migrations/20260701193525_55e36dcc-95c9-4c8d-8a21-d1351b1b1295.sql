@@ -1,0 +1,6 @@
+
+ALTER TABLE public.sales
+  ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'paid',
+  ADD COLUMN IF NOT EXISTS payment_reference TEXT,
+  ADD COLUMN IF NOT EXISTS payment_gateway TEXT NOT NULL DEFAULT 'manual',
+  ADD COLUMN IF NOT EXISTS payments JSONB NOT NULL DEFAULT '[]'::jsonb;
