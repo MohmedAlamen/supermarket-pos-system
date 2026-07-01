@@ -6,6 +6,12 @@ const DB_VERSION = 1;
 
 export type SaleStatus = "pending" | "synced" | "failed";
 
+export interface PaymentEntry {
+  method: string; // cash | card | stcpay | applepay | bank | other
+  amount: number;
+  reference?: string;
+}
+
 export interface PendingSale {
   id?: number;
   branch_id: string;
@@ -16,7 +22,11 @@ export interface PendingSale {
   discount: number;
   tax_amount: number;
   total: number;
-  payment_method: "cash" | "card";
+  payment_method: string;
+  payment_status?: string;
+  payment_reference?: string | null;
+  payment_gateway?: string;
+  payments?: PaymentEntry[];
   local_invoice_number: string;
   final_invoice_number?: string | null;
   status: SaleStatus;
