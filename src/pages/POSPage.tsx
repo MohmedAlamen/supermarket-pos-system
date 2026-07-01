@@ -122,13 +122,42 @@ const POSPage = () => {
   const total = afterDiscount + taxAmount;
   const change = cashReceived ? parseFloat(cashReceived) - total : 0;
 
-  const completeSale = async (method: "cash" | "card") => {
+  const splitSum = splitLines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+  const splitRemaining = +(total - splitSum).toFixed(2);
+
+  const addSplitLine = () => setSplitLines((ls) => [...ls, { method: "card", amount: Math.max(0, splitRemaining), reference: "" }]);
+  const updateSplitLine = (i: number, patch: Partial<PayLine>) => setSplitLines((ls) => ls.map((l, idx) => idx === i ? { ...l, ...patch } : l));
+  const removeSplitLine = (i: number) => setSplitLines((ls) => ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls);
+
+  const completeSale = async () => {
     if (cart.length === 0) { toast.error("السلة فارغة"); return; }
-    if (method === "cash" && (!cashReceived || parseFloat(cashReceived) < total)) {
-      toast.error("المبلغ المدفوع أقل من الإجمالي");
-      return;
+
+    let payments: { method: PayMethod; amount: number; reference?: string }[] = [];
+    let primaryMethod: string;
+    let primaryRef: string | null = null;
+
+    if (payMode === "single") {
+      const m = METHODS.find((x) => x.id === singleMethod)!;
+      if (m.id === "cash") {
+        if (!cashReceived || parseFloat(cashReceived) < total) { toast.error("المبلغ المدفوع أقل من الإجمالي"); return; }
+      } else if (m.needsRef && !singleRef.trim()) {
+        toast.error(`أدخل الرقم المرجعي لعملية ${m.label}`); return;
+      }
+      payments = [{ method: m.id, amount: total, reference: singleRef.trim() || undefined }];
+      primaryMethod = m.id;
+      primaryRef = singleRef.trim() || null;
+    } else {
+      if (Math.abs(splitRemaining) > 0.01) { toast.error(`المتبقي: ${splitRemaining.toFixed(2)} ر.س — يجب أن يساوي الإجمالي`); return; }
+      for (const l of splitLines) {
+        if (!l.amount || l.amount <= 0) { toast.error("كل طريقة دفع يجب أن يكون لها مبلغ"); return; }
+        const m = METHODS.find((x) => x.id === l.method)!;
+        if (m.needsRef && !l.reference.trim()) { toast.error(`أدخل الرقم المرجعي لعملية ${m.label}`); return; }
+      }
+      payments = splitLines.map((l) => ({ method: l.method, amount: +Number(l.amount).toFixed(2), reference: l.reference.trim() || undefined }));
+      primaryMethod = "mixed";
     }
 
+    setProcessing(true);
     const saved = await saveSale({
       items: [...cart],
       subtotal,
@@ -136,11 +165,16 @@ const POSPage = () => {
       discountAmount,
       tax_amount: taxAmount,
       total,
-      paymentMethod: method,
-      cashReceived: method === "cash" ? parseFloat(cashReceived) : undefined,
-      change: method === "cash" ? parseFloat(cashReceived) - total : undefined,
+      paymentMethod: primaryMethod,
+      cashReceived: payMode === "single" && singleMethod === "cash" ? parseFloat(cashReceived) : undefined,
+      change: payMode === "single" && singleMethod === "cash" ? parseFloat(cashReceived) - total : undefined,
       customer_id: selectedCustomer?.id || null,
+      payments,
+      payment_status: "paid",
+      payment_reference: primaryRef,
+      payment_gateway: "manual",
     });
+    setProcessing(false);
 
     if (!saved.ok) return;
 
@@ -152,19 +186,27 @@ const POSPage = () => {
       tax_amount: taxAmount,
       tax_rate: taxRate,
       total,
-      paymentMethod: method,
-      cashReceived: method === "cash" ? parseFloat(cashReceived) : undefined,
-      change: method === "cash" ? parseFloat(cashReceived) - total : undefined,
+      paymentMethod: primaryMethod,
+      cashReceived: payMode === "single" && singleMethod === "cash" ? parseFloat(cashReceived) : undefined,
+      change: payMode === "single" && singleMethod === "cash" ? parseFloat(cashReceived) - total : undefined,
       date: new Date(),
       invoice_number: saved.invoice_number,
       customer: selectedCustomer,
       store: settings,
+      payments,
+      payment_status: "paid",
+      payment_reference: primaryRef,
+      payment_gateway: "manual",
     });
 
     toast.success(`تم إتمام البيع! فاتورة: ${saved.invoice_number}`);
     setCart([]);
     setDiscount(0);
     setCashReceived("");
+    setSingleRef("");
+    setSplitLines([{ method: "cash", amount: 0, reference: "" }]);
+    setPayMode("single");
+    setSingleMethod("cash");
     setSelectedCustomer(null);
     setShowCheckout(false);
     setTimeout(() => window.print(), 300);
