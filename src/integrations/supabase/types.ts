@@ -269,7 +269,11 @@ export type Database = {
           id: string
           invoice_number: string | null
           items: Json
+          payment_gateway: string
           payment_method: string
+          payment_reference: string | null
+          payment_status: string
+          payments: Json
           subtotal: number
           tax_amount: number
           total: number
@@ -283,7 +287,11 @@ export type Database = {
           id?: string
           invoice_number?: string | null
           items?: Json
+          payment_gateway?: string
           payment_method?: string
+          payment_reference?: string | null
+          payment_status?: string
+          payments?: Json
           subtotal?: number
           tax_amount?: number
           total?: number
@@ -297,7 +305,11 @@ export type Database = {
           id?: string
           invoice_number?: string | null
           items?: Json
+          payment_gateway?: string
           payment_method?: string
+          payment_reference?: string | null
+          payment_status?: string
+          payments?: Json
           subtotal?: number
           tax_amount?: number
           total?: number

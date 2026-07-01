@@ -1,6 +1,12 @@
 import { CartItem, Customer, StoreSettings } from "@/types/pos";
 import { forwardRef } from "react";
 
+export interface ReceiptPaymentEntry {
+  method: string;
+  amount: number;
+  reference?: string;
+}
+
 interface ReceiptProps {
   items: CartItem[];
   subtotal: number;
@@ -9,17 +15,29 @@ interface ReceiptProps {
   tax_amount?: number;
   tax_rate?: number;
   total: number;
-  paymentMethod: "cash" | "card";
+  paymentMethod: string;
   cashReceived?: number;
   change?: number;
   date: Date;
   invoice_number?: string;
   customer?: Customer | null;
   store?: StoreSettings;
+  payments?: ReceiptPaymentEntry[];
+  payment_status?: string;
+  payment_reference?: string | null;
+  payment_gateway?: string;
 }
 
+const methodLabel = (m: string) => ({
+  cash: "نقدي", card: "بطاقة", stcpay: "STC Pay", applepay: "Apple Pay", bank: "تحويل بنكي", mixed: "دفع مقسّم",
+} as Record<string, string>)[m] || m;
+
+const statusLabel = (s?: string) => ({
+  paid: "مدفوعة", pending: "معلّقة", failed: "فاشلة", refunded: "مستردة",
+} as Record<string, string>)[s || "paid"] || s;
+
 const ReceiptPrint = forwardRef<HTMLDivElement, ReceiptProps>(
-  ({ items, subtotal, discount, discountAmount, tax_amount = 0, tax_rate = 0, total, paymentMethod, cashReceived, change, date, invoice_number, customer, store }, ref) => {
+  ({ items, subtotal, discount, discountAmount, tax_amount = 0, tax_rate = 0, total, paymentMethod, cashReceived, change, date, invoice_number, customer, store, payments, payment_status, payment_reference, payment_gateway }, ref) => {
     return (
       <div ref={ref} className="hidden print:block p-6 max-w-[320px] mx-auto font-mono text-xs" dir="rtl">
         <div className="text-center mb-3">
@@ -82,9 +100,37 @@ const ReceiptPrint = forwardRef<HTMLDivElement, ReceiptProps>(
             <span>الإجمالي</span>
           </div>
           <div className="flex justify-between">
-            <span>{paymentMethod === "cash" ? "نقدي" : "بطاقة"}</span>
+            <span>{methodLabel(paymentMethod)}</span>
             <span>طريقة الدفع</span>
           </div>
+          {payments && payments.length > 1 && (
+            <div className="border-t border-dashed border-black pt-1 mt-1">
+              {payments.map((p, i) => (
+                <div key={i} className="flex justify-between text-[10px]">
+                  <span>{p.amount.toFixed(2)} ر.س{p.reference ? ` (${p.reference})` : ""}</span>
+                  <span>{methodLabel(p.method)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {payment_reference && (!payments || payments.length <= 1) && (
+            <div className="flex justify-between text-[10px]">
+              <span>{payment_reference}</span>
+              <span>رقم العملية</span>
+            </div>
+          )}
+          {payment_gateway && payment_gateway !== "manual" && (
+            <div className="flex justify-between text-[10px]">
+              <span>{payment_gateway}</span>
+              <span>البوابة</span>
+            </div>
+          )}
+          {payment_status && payment_status !== "paid" && (
+            <div className="flex justify-between text-[10px] font-bold">
+              <span>{statusLabel(payment_status)}</span>
+              <span>الحالة</span>
+            </div>
+          )}
           {paymentMethod === "cash" && cashReceived !== undefined && (
             <>
               <div className="flex justify-between">

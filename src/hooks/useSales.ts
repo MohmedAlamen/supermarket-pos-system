@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useBranch } from "@/contexts/BranchContext";
 import { CartItem } from "@/types/pos";
 import { toast } from "sonner";
-import { enqueueSale } from "@/lib/offlineDB";
+import { enqueueSale, type PaymentEntry } from "@/lib/offlineDB";
 import { syncPendingSales, notifyPendingChanged } from "@/lib/syncService";
 
 function localInvoiceNumber(prefix: string) {
@@ -23,10 +23,14 @@ export function useSales() {
     discountAmount: number;
     tax_amount?: number;
     total: number;
-    paymentMethod: "cash" | "card";
+    paymentMethod: string;
     cashReceived?: number;
     change?: number;
     customer_id?: string | null;
+    payments?: PaymentEntry[];
+    payment_status?: string;
+    payment_reference?: string | null;
+    payment_gateway?: string;
   }): Promise<{ ok: boolean; invoice_number?: string; offline?: boolean }> => {
     if (!user) { toast.error("يجب تسجيل الدخول أولاً"); return { ok: false }; }
     if (!currentBranch) { toast.error("يجب اختيار الفرع أولاً"); return { ok: false }; }
@@ -38,9 +42,13 @@ export function useSales() {
       quantity: item.quantity,
     }));
 
+    const payments = sale.payments || [{ method: sale.paymentMethod, amount: sale.total, reference: sale.payment_reference || undefined }];
+    const payment_status = sale.payment_status || "paid";
+    const payment_gateway = sale.payment_gateway || "manual";
+    const payment_reference = sale.payment_reference || null;
+
     const offline = typeof navigator !== "undefined" && !navigator.onLine;
 
-    // OFFLINE: queue locally and return immediately
     if (offline) {
       const invoice_number = localInvoiceNumber(currentBranch.invoice_prefix || "INV");
       await enqueueSale({
@@ -53,6 +61,10 @@ export function useSales() {
         tax_amount: sale.tax_amount || 0,
         total: sale.total,
         payment_method: sale.paymentMethod,
+        payment_status,
+        payment_gateway,
+        payment_reference,
+        payments,
         local_invoice_number: invoice_number,
         created_at: new Date().toISOString(),
       });
@@ -61,7 +73,6 @@ export function useSales() {
       return { ok: true, invoice_number, offline: true };
     }
 
-    // ONLINE path
     try {
       const { data: invData, error: invErr } = await (supabase as any)
         .rpc("generate_branch_invoice_number", { _branch_id: currentBranch.id });
@@ -79,10 +90,13 @@ export function useSales() {
         total: sale.total,
         discount: sale.discount,
         payment_method: sale.paymentMethod,
+        payment_status,
+        payment_gateway,
+        payment_reference,
+        payments,
       });
       if (error) throw error;
 
-      // Decrement branch stock per item
       for (const it of sale.items) {
         const { data: row } = await (supabase as any)
           .from("branch_stock")
@@ -97,7 +111,6 @@ export function useSales() {
         );
       }
 
-      // Loyalty points
       if (sale.customer_id) {
         const { data: cust } = await (supabase as any)
           .from("customers").select("loyalty_points, total_purchases").eq("id", sale.customer_id).maybeSingle();
@@ -112,7 +125,6 @@ export function useSales() {
         }
       }
 
-      // Opportunistic catch-up
       syncPendingSales();
       return { ok: true, invoice_number };
     } catch (err) {
@@ -128,6 +140,10 @@ export function useSales() {
         tax_amount: sale.tax_amount || 0,
         total: sale.total,
         payment_method: sale.paymentMethod,
+        payment_status,
+        payment_gateway,
+        payment_reference,
+        payments,
         local_invoice_number: invoice_number,
         created_at: new Date().toISOString(),
       });
@@ -139,3 +155,4 @@ export function useSales() {
 
   return { saveSale };
 }
+

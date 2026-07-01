@@ -1,16 +1,28 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt, Loader2, ScanLine, UserCircle, X } from "lucide-react";
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt, Loader2, ScanLine, UserCircle, X, Smartphone, Wallet, Building2, Split } from "lucide-react";
 import ReceiptPrint from "@/components/pos/ReceiptPrint";
 import BarcodeScanner from "@/components/pos/BarcodeScanner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { useProducts, useCategories } from "@/hooks/useProducts";
 import { useSales } from "@/hooks/useSales";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { Product, CartItem, Customer } from "@/types/pos";
 import { toast } from "sonner";
+
+type PayMethod = "cash" | "card" | "stcpay" | "applepay" | "bank";
+interface PayLine { method: PayMethod; amount: number; reference: string; }
+
+const METHODS: { id: PayMethod; label: string; icon: any; needsRef: boolean }[] = [
+  { id: "cash", label: "نقدي", icon: Banknote, needsRef: false },
+  { id: "card", label: "بطاقة", icon: CreditCard, needsRef: true },
+  { id: "stcpay", label: "STC Pay", icon: Smartphone, needsRef: true },
+  { id: "applepay", label: "Apple Pay", icon: Wallet, needsRef: true },
+  { id: "bank", label: "تحويل بنكي", icon: Building2, needsRef: true },
+];
 
 const POSPage = () => {
   const { products, loading } = useProducts();
@@ -23,6 +35,11 @@ const POSPage = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState(0);
   const [cashReceived, setCashReceived] = useState("");
+  const [payMode, setPayMode] = useState<"single" | "split">("single");
+  const [singleMethod, setSingleMethod] = useState<PayMethod>("cash");
+  const [singleRef, setSingleRef] = useState("");
+  const [splitLines, setSplitLines] = useState<PayLine[]>([{ method: "cash", amount: 0, reference: "" }]);
+  const [processing, setProcessing] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerSearch, setCustomerSearch] = useState("");
@@ -105,13 +122,42 @@ const POSPage = () => {
   const total = afterDiscount + taxAmount;
   const change = cashReceived ? parseFloat(cashReceived) - total : 0;
 
-  const completeSale = async (method: "cash" | "card") => {
+  const splitSum = splitLines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+  const splitRemaining = +(total - splitSum).toFixed(2);
+
+  const addSplitLine = () => setSplitLines((ls) => [...ls, { method: "card", amount: Math.max(0, splitRemaining), reference: "" }]);
+  const updateSplitLine = (i: number, patch: Partial<PayLine>) => setSplitLines((ls) => ls.map((l, idx) => idx === i ? { ...l, ...patch } : l));
+  const removeSplitLine = (i: number) => setSplitLines((ls) => ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls);
+
+  const completeSale = async () => {
     if (cart.length === 0) { toast.error("السلة فارغة"); return; }
-    if (method === "cash" && (!cashReceived || parseFloat(cashReceived) < total)) {
-      toast.error("المبلغ المدفوع أقل من الإجمالي");
-      return;
+
+    let payments: { method: PayMethod; amount: number; reference?: string }[] = [];
+    let primaryMethod: string;
+    let primaryRef: string | null = null;
+
+    if (payMode === "single") {
+      const m = METHODS.find((x) => x.id === singleMethod)!;
+      if (m.id === "cash") {
+        if (!cashReceived || parseFloat(cashReceived) < total) { toast.error("المبلغ المدفوع أقل من الإجمالي"); return; }
+      } else if (m.needsRef && !singleRef.trim()) {
+        toast.error(`أدخل الرقم المرجعي لعملية ${m.label}`); return;
+      }
+      payments = [{ method: m.id, amount: total, reference: singleRef.trim() || undefined }];
+      primaryMethod = m.id;
+      primaryRef = singleRef.trim() || null;
+    } else {
+      if (Math.abs(splitRemaining) > 0.01) { toast.error(`المتبقي: ${splitRemaining.toFixed(2)} ر.س — يجب أن يساوي الإجمالي`); return; }
+      for (const l of splitLines) {
+        if (!l.amount || l.amount <= 0) { toast.error("كل طريقة دفع يجب أن يكون لها مبلغ"); return; }
+        const m = METHODS.find((x) => x.id === l.method)!;
+        if (m.needsRef && !l.reference.trim()) { toast.error(`أدخل الرقم المرجعي لعملية ${m.label}`); return; }
+      }
+      payments = splitLines.map((l) => ({ method: l.method, amount: +Number(l.amount).toFixed(2), reference: l.reference.trim() || undefined }));
+      primaryMethod = "mixed";
     }
 
+    setProcessing(true);
     const saved = await saveSale({
       items: [...cart],
       subtotal,
@@ -119,11 +165,16 @@ const POSPage = () => {
       discountAmount,
       tax_amount: taxAmount,
       total,
-      paymentMethod: method,
-      cashReceived: method === "cash" ? parseFloat(cashReceived) : undefined,
-      change: method === "cash" ? parseFloat(cashReceived) - total : undefined,
+      paymentMethod: primaryMethod,
+      cashReceived: payMode === "single" && singleMethod === "cash" ? parseFloat(cashReceived) : undefined,
+      change: payMode === "single" && singleMethod === "cash" ? parseFloat(cashReceived) - total : undefined,
       customer_id: selectedCustomer?.id || null,
+      payments,
+      payment_status: "paid",
+      payment_reference: primaryRef,
+      payment_gateway: "manual",
     });
+    setProcessing(false);
 
     if (!saved.ok) return;
 
@@ -135,19 +186,27 @@ const POSPage = () => {
       tax_amount: taxAmount,
       tax_rate: taxRate,
       total,
-      paymentMethod: method,
-      cashReceived: method === "cash" ? parseFloat(cashReceived) : undefined,
-      change: method === "cash" ? parseFloat(cashReceived) - total : undefined,
+      paymentMethod: primaryMethod,
+      cashReceived: payMode === "single" && singleMethod === "cash" ? parseFloat(cashReceived) : undefined,
+      change: payMode === "single" && singleMethod === "cash" ? parseFloat(cashReceived) - total : undefined,
       date: new Date(),
       invoice_number: saved.invoice_number,
       customer: selectedCustomer,
       store: settings,
+      payments,
+      payment_status: "paid",
+      payment_reference: primaryRef,
+      payment_gateway: "manual",
     });
 
     toast.success(`تم إتمام البيع! فاتورة: ${saved.invoice_number}`);
     setCart([]);
     setDiscount(0);
     setCashReceived("");
+    setSingleRef("");
+    setSplitLines([{ method: "cash", amount: 0, reference: "" }]);
+    setPayMode("single");
+    setSingleMethod("cash");
     setSelectedCustomer(null);
     setShowCheckout(false);
     setTimeout(() => window.print(), 300);
@@ -300,16 +359,67 @@ const POSPage = () => {
           </div>
 
           {showCheckout ? (
-            <div className="space-y-2 animate-slide-in">
-              <Input type="number" placeholder="المبلغ المدفوع" value={cashReceived} onChange={(e) => setCashReceived(e.target.value)} className="bg-secondary border-border text-center text-lg" />
-              {cashReceived && parseFloat(cashReceived) >= total && (
-                <p className="text-center text-success font-bold">الباقي: {change.toFixed(2)} ر.س</p>
-              )}
+            <div className="space-y-3 animate-slide-in max-h-[55vh] overflow-y-auto pr-1">
               <div className="flex gap-2">
-                <Button onClick={() => completeSale("cash")} className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"><Banknote className="h-4 w-4 ml-1" />نقدي</Button>
-                <Button onClick={() => completeSale("card")} variant="outline" className="flex-1 border-primary text-primary hover:bg-primary/10"><CreditCard className="h-4 w-4 ml-1" />بطاقة</Button>
+                <button onClick={() => setPayMode("single")} className={`flex-1 text-xs py-1.5 rounded-md border ${payMode === "single" ? "bg-primary text-primary-foreground border-primary" : "bg-secondary border-border"}`}>طريقة واحدة</button>
+                <button onClick={() => { setPayMode("split"); if (splitLines.length === 1 && !splitLines[0].amount) setSplitLines([{ method: "cash", amount: total, reference: "" }]); }} className={`flex-1 text-xs py-1.5 rounded-md border flex items-center justify-center gap-1 ${payMode === "split" ? "bg-primary text-primary-foreground border-primary" : "bg-secondary border-border"}`}><Split className="h-3 w-3" />دفع مقسّم</button>
               </div>
-              <Button variant="ghost" onClick={() => setShowCheckout(false)} className="w-full text-muted-foreground">إلغاء</Button>
+
+              {payMode === "single" ? (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-5 gap-1">
+                    {METHODS.map((m) => {
+                      const Icon = m.icon;
+                      return (
+                        <button key={m.id} onClick={() => setSingleMethod(m.id)} className={`flex flex-col items-center gap-1 p-2 rounded-md border text-[10px] ${singleMethod === m.id ? "bg-primary/15 border-primary text-primary" : "bg-secondary border-border"}`} title={m.label}>
+                          <Icon className="h-4 w-4" />
+                          <span className="leading-tight">{m.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {singleMethod === "cash" ? (
+                    <>
+                      <Input type="number" placeholder="المبلغ المدفوع" value={cashReceived} onChange={(e) => setCashReceived(e.target.value)} className="bg-secondary border-border text-center text-lg" />
+                      {cashReceived && parseFloat(cashReceived) >= total && (
+                        <p className="text-center text-success font-bold">الباقي: {change.toFixed(2)} ر.س</p>
+                      )}
+                    </>
+                  ) : (
+                    <div>
+                      <Label className="text-xs">رقم العملية / المرجع</Label>
+                      <Input value={singleRef} onChange={(e) => setSingleRef(e.target.value)} placeholder="من جهاز POS / إشعار STC / ..." className="bg-secondary border-border" />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {splitLines.map((line, i) => (
+                    <div key={i} className="bg-secondary/60 rounded-md p-2 space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <select value={line.method} onChange={(e) => updateSplitLine(i, { method: e.target.value as PayMethod })} className="flex-1 bg-background border border-border rounded-md h-8 text-xs px-2">
+                          {METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                        </select>
+                        <Input type="number" value={line.amount || ""} onChange={(e) => updateSplitLine(i, { amount: Number(e.target.value) })} placeholder="المبلغ" className="w-24 h-8 text-center bg-background border-border text-xs" />
+                        <button onClick={() => removeSplitLine(i)} className="text-destructive p-1 disabled:opacity-30" disabled={splitLines.length === 1}><X className="h-4 w-4" /></button>
+                      </div>
+                      {METHODS.find((m) => m.id === line.method)?.needsRef && (
+                        <Input value={line.reference} onChange={(e) => updateSplitLine(i, { reference: e.target.value })} placeholder="رقم المرجع" className="bg-background border-border h-7 text-xs" />
+                      )}
+                    </div>
+                  ))}
+                  <Button size="sm" variant="outline" onClick={addSplitLine} className="w-full h-7 text-xs"><Plus className="h-3 w-3 ml-1" />إضافة طريقة دفع</Button>
+                  <div className={`flex justify-between text-xs font-bold px-1 ${Math.abs(splitRemaining) < 0.01 ? "text-success" : "text-destructive"}`}>
+                    <span>{splitRemaining.toFixed(2)} ر.س</span>
+                    <span>المتبقي</span>
+                  </div>
+                </div>
+              )}
+
+              <Button onClick={completeSale} disabled={processing} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-11">
+                {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الدفع"}
+              </Button>
+              <Button variant="ghost" onClick={() => setShowCheckout(false)} className="w-full text-muted-foreground h-8">إلغاء</Button>
             </div>
           ) : (
             <Button onClick={() => setShowCheckout(true)} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-lg h-12" disabled={cart.length === 0}>إتمام البيع</Button>
