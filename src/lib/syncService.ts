@@ -47,6 +47,10 @@ export async function syncPendingSales(): Promise<{ synced: number; failed: numb
           total: s.total,
           discount: s.discount,
           payment_method: s.payment_method,
+          payment_status: s.payment_status || "paid",
+          payment_gateway: s.payment_gateway || "manual",
+          payment_reference: s.payment_reference || null,
+          payments: s.payments || [{ method: s.payment_method, amount: s.total }],
           created_at: s.created_at,
         });
         if (error) throw error;
