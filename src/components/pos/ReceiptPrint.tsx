@@ -100,9 +100,37 @@ const ReceiptPrint = forwardRef<HTMLDivElement, ReceiptProps>(
             <span>الإجمالي</span>
           </div>
           <div className="flex justify-between">
-            <span>{paymentMethod === "cash" ? "نقدي" : "بطاقة"}</span>
+            <span>{methodLabel(paymentMethod)}</span>
             <span>طريقة الدفع</span>
           </div>
+          {payments && payments.length > 1 && (
+            <div className="border-t border-dashed border-black pt-1 mt-1">
+              {payments.map((p, i) => (
+                <div key={i} className="flex justify-between text-[10px]">
+                  <span>{p.amount.toFixed(2)} ر.س{p.reference ? ` (${p.reference})` : ""}</span>
+                  <span>{methodLabel(p.method)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {payment_reference && (!payments || payments.length <= 1) && (
+            <div className="flex justify-between text-[10px]">
+              <span>{payment_reference}</span>
+              <span>رقم العملية</span>
+            </div>
+          )}
+          {payment_gateway && payment_gateway !== "manual" && (
+            <div className="flex justify-between text-[10px]">
+              <span>{payment_gateway}</span>
+              <span>البوابة</span>
+            </div>
+          )}
+          {payment_status && payment_status !== "paid" && (
+            <div className="flex justify-between text-[10px] font-bold">
+              <span>{statusLabel(payment_status)}</span>
+              <span>الحالة</span>
+            </div>
+          )}
           {paymentMethod === "cash" && cashReceived !== undefined && (
             <>
               <div className="flex justify-between">
