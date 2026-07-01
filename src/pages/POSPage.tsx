@@ -35,6 +35,11 @@ const POSPage = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState(0);
   const [cashReceived, setCashReceived] = useState("");
+  const [payMode, setPayMode] = useState<"single" | "split">("single");
+  const [singleMethod, setSingleMethod] = useState<PayMethod>("cash");
+  const [singleRef, setSingleRef] = useState("");
+  const [splitLines, setSplitLines] = useState<PayLine[]>([{ method: "cash", amount: 0, reference: "" }]);
+  const [processing, setProcessing] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerSearch, setCustomerSearch] = useState("");
