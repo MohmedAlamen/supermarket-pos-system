@@ -359,16 +359,67 @@ const POSPage = () => {
           </div>
 
           {showCheckout ? (
-            <div className="space-y-2 animate-slide-in">
-              <Input type="number" placeholder="المبلغ المدفوع" value={cashReceived} onChange={(e) => setCashReceived(e.target.value)} className="bg-secondary border-border text-center text-lg" />
-              {cashReceived && parseFloat(cashReceived) >= total && (
-                <p className="text-center text-success font-bold">الباقي: {change.toFixed(2)} ر.س</p>
-              )}
+            <div className="space-y-3 animate-slide-in max-h-[55vh] overflow-y-auto pr-1">
               <div className="flex gap-2">
-                <Button onClick={() => completeSale("cash")} className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"><Banknote className="h-4 w-4 ml-1" />نقدي</Button>
-                <Button onClick={() => completeSale("card")} variant="outline" className="flex-1 border-primary text-primary hover:bg-primary/10"><CreditCard className="h-4 w-4 ml-1" />بطاقة</Button>
+                <button onClick={() => setPayMode("single")} className={`flex-1 text-xs py-1.5 rounded-md border ${payMode === "single" ? "bg-primary text-primary-foreground border-primary" : "bg-secondary border-border"}`}>طريقة واحدة</button>
+                <button onClick={() => { setPayMode("split"); if (splitLines.length === 1 && !splitLines[0].amount) setSplitLines([{ method: "cash", amount: total, reference: "" }]); }} className={`flex-1 text-xs py-1.5 rounded-md border flex items-center justify-center gap-1 ${payMode === "split" ? "bg-primary text-primary-foreground border-primary" : "bg-secondary border-border"}`}><Split className="h-3 w-3" />دفع مقسّم</button>
               </div>
-              <Button variant="ghost" onClick={() => setShowCheckout(false)} className="w-full text-muted-foreground">إلغاء</Button>
+
+              {payMode === "single" ? (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-5 gap-1">
+                    {METHODS.map((m) => {
+                      const Icon = m.icon;
+                      return (
+                        <button key={m.id} onClick={() => setSingleMethod(m.id)} className={`flex flex-col items-center gap-1 p-2 rounded-md border text-[10px] ${singleMethod === m.id ? "bg-primary/15 border-primary text-primary" : "bg-secondary border-border"}`} title={m.label}>
+                          <Icon className="h-4 w-4" />
+                          <span className="leading-tight">{m.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {singleMethod === "cash" ? (
+                    <>
+                      <Input type="number" placeholder="المبلغ المدفوع" value={cashReceived} onChange={(e) => setCashReceived(e.target.value)} className="bg-secondary border-border text-center text-lg" />
+                      {cashReceived && parseFloat(cashReceived) >= total && (
+                        <p className="text-center text-success font-bold">الباقي: {change.toFixed(2)} ر.س</p>
+                      )}
+                    </>
+                  ) : (
+                    <div>
+                      <Label className="text-xs">رقم العملية / المرجع</Label>
+                      <Input value={singleRef} onChange={(e) => setSingleRef(e.target.value)} placeholder="من جهاز POS / إشعار STC / ..." className="bg-secondary border-border" />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {splitLines.map((line, i) => (
+                    <div key={i} className="bg-secondary/60 rounded-md p-2 space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <select value={line.method} onChange={(e) => updateSplitLine(i, { method: e.target.value as PayMethod })} className="flex-1 bg-background border border-border rounded-md h-8 text-xs px-2">
+                          {METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                        </select>
+                        <Input type="number" value={line.amount || ""} onChange={(e) => updateSplitLine(i, { amount: Number(e.target.value) })} placeholder="المبلغ" className="w-24 h-8 text-center bg-background border-border text-xs" />
+                        <button onClick={() => removeSplitLine(i)} className="text-destructive p-1 disabled:opacity-30" disabled={splitLines.length === 1}><X className="h-4 w-4" /></button>
+                      </div>
+                      {METHODS.find((m) => m.id === line.method)?.needsRef && (
+                        <Input value={line.reference} onChange={(e) => updateSplitLine(i, { reference: e.target.value })} placeholder="رقم المرجع" className="bg-background border-border h-7 text-xs" />
+                      )}
+                    </div>
+                  ))}
+                  <Button size="sm" variant="outline" onClick={addSplitLine} className="w-full h-7 text-xs"><Plus className="h-3 w-3 ml-1" />إضافة طريقة دفع</Button>
+                  <div className={`flex justify-between text-xs font-bold px-1 ${Math.abs(splitRemaining) < 0.01 ? "text-success" : "text-destructive"}`}>
+                    <span>{splitRemaining.toFixed(2)} ر.س</span>
+                    <span>المتبقي</span>
+                  </div>
+                </div>
+              )}
+
+              <Button onClick={completeSale} disabled={processing} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-11">
+                {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الدفع"}
+              </Button>
+              <Button variant="ghost" onClick={() => setShowCheckout(false)} className="w-full text-muted-foreground h-8">إلغاء</Button>
             </div>
           ) : (
             <Button onClick={() => setShowCheckout(true)} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-lg h-12" disabled={cart.length === 0}>إتمام البيع</Button>
