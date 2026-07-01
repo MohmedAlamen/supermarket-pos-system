@@ -1,16 +1,28 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt, Loader2, ScanLine, UserCircle, X } from "lucide-react";
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt, Loader2, ScanLine, UserCircle, X, Smartphone, Wallet, Building2, Split } from "lucide-react";
 import ReceiptPrint from "@/components/pos/ReceiptPrint";
 import BarcodeScanner from "@/components/pos/BarcodeScanner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { useProducts, useCategories } from "@/hooks/useProducts";
 import { useSales } from "@/hooks/useSales";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { Product, CartItem, Customer } from "@/types/pos";
 import { toast } from "sonner";
+
+type PayMethod = "cash" | "card" | "stcpay" | "applepay" | "bank";
+interface PayLine { method: PayMethod; amount: number; reference: string; }
+
+const METHODS: { id: PayMethod; label: string; icon: any; needsRef: boolean }[] = [
+  { id: "cash", label: "نقدي", icon: Banknote, needsRef: false },
+  { id: "card", label: "بطاقة", icon: CreditCard, needsRef: true },
+  { id: "stcpay", label: "STC Pay", icon: Smartphone, needsRef: true },
+  { id: "applepay", label: "Apple Pay", icon: Wallet, needsRef: true },
+  { id: "bank", label: "تحويل بنكي", icon: Building2, needsRef: true },
+];
 
 const POSPage = () => {
   const { products, loading } = useProducts();
