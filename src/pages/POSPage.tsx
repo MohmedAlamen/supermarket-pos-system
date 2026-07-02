@@ -197,6 +197,7 @@ const POSPage = () => {
       payment_status: "paid",
       payment_reference: primaryRef,
       payment_gateway: "manual",
+      qr_code: saved.qr_code,
     });
 
     toast.success(`تم إتمام البيع! فاتورة: ${saved.invoice_number}`);
