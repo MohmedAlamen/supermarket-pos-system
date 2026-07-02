@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { pendingSales, markSynced, markFailed, pendingCount, type PendingSale } from "@/lib/offlineDB";
 import { toast } from "sonner";
+import { buildAndPersistZatca, readBranchCounter } from "@/lib/zatca/persist";
 
 let syncing = false;
 const listeners = new Set<(count: number) => void>();
@@ -35,6 +36,28 @@ export async function syncPendingSales(): Promise<{ synced: number; failed: numb
           .rpc("generate_branch_invoice_number", { _branch_id: s.branch_id });
         if (invErr) throw invErr;
         const invoice_number = inv || s.local_invoice_number;
+        const icv = await readBranchCounter(s.branch_id);
+
+        let customerForZatca: any = null;
+        if (s.customer_id) {
+          const { data: c } = await (supabase as any)
+            .from("customers").select("name, tax_number, address").eq("id", s.customer_id).maybeSingle();
+          customerForZatca = c;
+        }
+        const discountAmount = (Number(s.subtotal) * Number(s.discount || 0)) / 100;
+        const zatca = await buildAndPersistZatca({
+          branchId: s.branch_id,
+          invoiceNumber: invoice_number,
+          icv,
+          issueDateISO: s.created_at,
+          invoiceType: customerForZatca?.tax_number ? "standard" : "simplified",
+          items: s.items.map((it) => ({ name: it.name, price: it.price, quantity: it.quantity })),
+          subtotal: s.subtotal,
+          discountAmount,
+          taxAmount: s.tax_amount,
+          total: s.total,
+          customer: customerForZatca,
+        });
 
         const { error } = await (supabase as any).from("sales").insert({
           cashier_id: s.cashier_id,
@@ -52,6 +75,7 @@ export async function syncPendingSales(): Promise<{ synced: number; failed: numb
           payment_reference: s.payment_reference || null,
           payments: s.payments || [{ method: s.payment_method, amount: s.total }],
           created_at: s.created_at,
+          ...zatca,
         });
         if (error) throw error;
 
