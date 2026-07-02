@@ -9,7 +9,7 @@ export type { ZatcaLine, BuildXmlInput };
 export function newUuid(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return (crypto as any).randomUUID();
   const b = new Uint8Array(16);
-  crypto.getRandomValues(b);
+  (crypto as any).getRandomValues(b);
   b[6] = (b[6] & 0x0f) | 0x40;
   b[8] = (b[8] & 0x3f) | 0x80;
   const h = Array.from(b).map((x) => x.toString(16).padStart(2, "0"));
