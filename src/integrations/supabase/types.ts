@@ -60,12 +60,18 @@ export type Database = {
         Row: {
           address: string | null
           code: string
+          common_name: string | null
+          country_code: string
           created_at: string
+          crn: string | null
+          device_serial: string
           id: string
           invoice_counter: number
           invoice_prefix: string
           is_active: boolean
+          last_invoice_hash: string
           name: string
+          organization_name: string | null
           phone: string | null
           tax_number: string | null
           updated_at: string
@@ -73,12 +79,18 @@ export type Database = {
         Insert: {
           address?: string | null
           code: string
+          common_name?: string | null
+          country_code?: string
           created_at?: string
+          crn?: string | null
+          device_serial?: string
           id?: string
           invoice_counter?: number
           invoice_prefix?: string
           is_active?: boolean
+          last_invoice_hash?: string
           name: string
+          organization_name?: string | null
           phone?: string | null
           tax_number?: string | null
           updated_at?: string
@@ -86,12 +98,18 @@ export type Database = {
         Update: {
           address?: string | null
           code?: string
+          common_name?: string | null
+          country_code?: string
           created_at?: string
+          crn?: string | null
+          device_serial?: string
           id?: string
           invoice_counter?: number
           invoice_prefix?: string
           is_active?: boolean
+          last_invoice_hash?: string
           name?: string
+          organization_name?: string | null
           phone?: string | null
           tax_number?: string | null
           updated_at?: string
@@ -266,17 +284,26 @@ export type Database = {
           created_at: string
           customer_id: string | null
           discount: number
+          icv: number | null
           id: string
+          invoice_hash: string | null
           invoice_number: string | null
+          invoice_type: string
           items: Json
           payment_gateway: string
           payment_method: string
           payment_reference: string | null
           payment_status: string
           payments: Json
+          previous_invoice_hash: string | null
+          qr_code: string | null
           subtotal: number
           tax_amount: number
           total: number
+          uuid_zatca: string | null
+          xml_content: string | null
+          zatca_response: Json | null
+          zatca_status: string
         }
         Insert: {
           branch_id?: string | null
@@ -284,17 +311,26 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           discount?: number
+          icv?: number | null
           id?: string
+          invoice_hash?: string | null
           invoice_number?: string | null
+          invoice_type?: string
           items?: Json
           payment_gateway?: string
           payment_method?: string
           payment_reference?: string | null
           payment_status?: string
           payments?: Json
+          previous_invoice_hash?: string | null
+          qr_code?: string | null
           subtotal?: number
           tax_amount?: number
           total?: number
+          uuid_zatca?: string | null
+          xml_content?: string | null
+          zatca_response?: Json | null
+          zatca_status?: string
         }
         Update: {
           branch_id?: string | null
@@ -302,17 +338,26 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           discount?: number
+          icv?: number | null
           id?: string
+          invoice_hash?: string | null
           invoice_number?: string | null
+          invoice_type?: string
           items?: Json
           payment_gateway?: string
           payment_method?: string
           payment_reference?: string | null
           payment_status?: string
           payments?: Json
+          previous_invoice_hash?: string | null
+          qr_code?: string | null
           subtotal?: number
           tax_amount?: number
           total?: number
+          uuid_zatca?: string | null
+          xml_content?: string | null
+          zatca_response?: Json | null
+          zatca_status?: string
         }
         Relationships: [
           {
@@ -446,6 +491,14 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      zatca_advance_branch: {
+        Args: { _branch_id: string; _new_hash: string }
+        Returns: {
+          icv: number
+          invoice_number: string
+          previous_hash: string
+        }[]
       }
     }
     Enums: {

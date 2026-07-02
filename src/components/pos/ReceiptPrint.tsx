@@ -1,5 +1,6 @@
 import { CartItem, Customer, StoreSettings } from "@/types/pos";
-import { forwardRef } from "react";
+import { forwardRef, useEffect, useState } from "react";
+import QRCode from "qrcode";
 
 export interface ReceiptPaymentEntry {
   method: string;
@@ -26,6 +27,7 @@ interface ReceiptProps {
   payment_status?: string;
   payment_reference?: string | null;
   payment_gateway?: string;
+  qr_code?: string; // ZATCA TLV base64
 }
 
 const methodLabel = (m: string) => ({
@@ -37,7 +39,13 @@ const statusLabel = (s?: string) => ({
 } as Record<string, string>)[s || "paid"] || s;
 
 const ReceiptPrint = forwardRef<HTMLDivElement, ReceiptProps>(
-  ({ items, subtotal, discount, discountAmount, tax_amount = 0, tax_rate = 0, total, paymentMethod, cashReceived, change, date, invoice_number, customer, store, payments, payment_status, payment_reference, payment_gateway }, ref) => {
+  ({ items, subtotal, discount, discountAmount, tax_amount = 0, tax_rate = 0, total, paymentMethod, cashReceived, change, date, invoice_number, customer, store, payments, payment_status, payment_reference, payment_gateway, qr_code }, ref) => {
+    const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+    useEffect(() => {
+      if (!qr_code) { setQrDataUrl(null); return; }
+      QRCode.toDataURL(qr_code, { errorCorrectionLevel: "M", margin: 1, width: 180 })
+        .then(setQrDataUrl).catch(() => setQrDataUrl(null));
+    }, [qr_code]);
     return (
       <div ref={ref} className="hidden print:block p-6 max-w-[320px] mx-auto font-mono text-xs" dir="rtl">
         <div className="text-center mb-3">
@@ -145,9 +153,16 @@ const ReceiptPrint = forwardRef<HTMLDivElement, ReceiptProps>(
           )}
         </div>
 
+        {qrDataUrl && (
+          <div className="flex justify-center my-3">
+            <img src={qrDataUrl} alt="ZATCA QR" className="w-32 h-32" />
+          </div>
+        )}
+
         <div className="text-center mt-4 border-t border-dashed border-black pt-2">
           <p>شكراً لزيارتكم</p>
           {store?.email && <p className="text-[10px] mt-1">{store.email}</p>}
+          <p className="text-[9px] mt-1 text-black/70">فاتورة إلكترونية - هيئة الزكاة والضريبة</p>
         </div>
       </div>
     );

@@ -1,4 +1,4 @@
-import { ShoppingCart, Package, BarChart3, Users, LogOut, UserCircle, Truck, Settings, ShoppingBag, Store, CloudUpload } from "lucide-react";
+import { ShoppingCart, Package, BarChart3, Users, LogOut, UserCircle, Truck, Settings, ShoppingBag, Store, CloudUpload, FileText } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,6 +23,7 @@ const allItems = [
   { title: "التقارير", url: "/reports", icon: BarChart3, roles: ["admin"] },
   { title: "الفروع", url: "/branches", icon: Store, roles: ["admin"] },
   { title: "فواتير عدم الاتصال", url: "/pending-invoices", icon: CloudUpload, roles: ["admin", "cashier"] },
+  { title: "فواتير ZATCA", url: "/zatca", icon: FileText, roles: ["admin"] },
   { title: "الموظفين", url: "/staff", icon: Users, roles: ["admin"] },
   { title: "الإعدادات", url: "/settings", icon: Settings, roles: ["admin"] },
 ];

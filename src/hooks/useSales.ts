@@ -5,6 +5,7 @@ import { CartItem } from "@/types/pos";
 import { toast } from "sonner";
 import { enqueueSale, type PaymentEntry } from "@/lib/offlineDB";
 import { syncPendingSales, notifyPendingChanged } from "@/lib/syncService";
+import { buildAndPersistZatca, readBranchCounter } from "@/lib/zatca/persist";
 
 function localInvoiceNumber(prefix: string) {
   const d = new Date();
@@ -31,7 +32,7 @@ export function useSales() {
     payment_status?: string;
     payment_reference?: string | null;
     payment_gateway?: string;
-  }): Promise<{ ok: boolean; invoice_number?: string; offline?: boolean }> => {
+  }): Promise<{ ok: boolean; invoice_number?: string; qr_code?: string; offline?: boolean }> => {
     if (!user) { toast.error("يجب تسجيل الدخول أولاً"); return { ok: false }; }
     if (!currentBranch) { toast.error("يجب اختيار الفرع أولاً"); return { ok: false }; }
 
@@ -78,6 +79,28 @@ export function useSales() {
         .rpc("generate_branch_invoice_number", { _branch_id: currentBranch.id });
       if (invErr) throw invErr;
       const invoice_number = invData || `INV-${Date.now()}`;
+      const icv = await readBranchCounter(currentBranch.id);
+
+      // Build ZATCA e-invoice (XML + QR + hash chain).
+      let customerForZatca: any = null;
+      if (sale.customer_id) {
+        const { data: c } = await (supabase as any)
+          .from("customers").select("name, tax_number, address").eq("id", sale.customer_id).maybeSingle();
+        customerForZatca = c;
+      }
+      const zatca = await buildAndPersistZatca({
+        branchId: currentBranch.id,
+        invoiceNumber: invoice_number,
+        icv,
+        issueDateISO: new Date().toISOString(),
+        invoiceType: customerForZatca?.tax_number ? "standard" : "simplified",
+        items: itemsPayload.map((it) => ({ name: it.name, price: it.price, quantity: it.quantity })),
+        subtotal: sale.subtotal,
+        discountAmount: sale.discountAmount,
+        taxAmount: sale.tax_amount || 0,
+        total: sale.total,
+        customer: customerForZatca,
+      });
 
       const { error } = await (supabase as any).from("sales").insert({
         cashier_id: user.id,
@@ -94,6 +117,7 @@ export function useSales() {
         payment_gateway,
         payment_reference,
         payments,
+        ...zatca,
       });
       if (error) throw error;
 
@@ -126,7 +150,7 @@ export function useSales() {
       }
 
       syncPendingSales();
-      return { ok: true, invoice_number };
+      return { ok: true, invoice_number, qr_code: zatca.qr_code };
     } catch (err) {
       console.error("online save failed, falling back to offline queue", err);
       const invoice_number = localInvoiceNumber(currentBranch.invoice_prefix || "INV");
