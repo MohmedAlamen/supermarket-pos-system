@@ -17,6 +17,7 @@ import SettingsPage from "./pages/SettingsPage";
 import PurchasesPage from "./pages/PurchasesPage";
 import BranchesPage from "./pages/BranchesPage";
 import PendingInvoicesPage from "./pages/PendingInvoicesPage";
+import ZatcaInvoicesPage from "./pages/ZatcaInvoicesPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="/reports" element={<ProtectedRoute requiredRole="admin"><AppLayout><ReportsPage /></AppLayout></ProtectedRoute>} />
               <Route path="/branches" element={<ProtectedRoute requiredRole="admin"><AppLayout><BranchesPage /></AppLayout></ProtectedRoute>} />
               <Route path="/pending-invoices" element={<ProtectedRoute><AppLayout><PendingInvoicesPage /></AppLayout></ProtectedRoute>} />
+              <Route path="/zatca" element={<ProtectedRoute requiredRole="admin"><AppLayout><ZatcaInvoicesPage /></AppLayout></ProtectedRoute>} />
               <Route path="/staff" element={<ProtectedRoute requiredRole="admin"><AppLayout><StaffPage /></AppLayout></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute requiredRole="admin"><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
