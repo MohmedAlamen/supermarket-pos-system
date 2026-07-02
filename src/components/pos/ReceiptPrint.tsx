@@ -153,9 +153,16 @@ const ReceiptPrint = forwardRef<HTMLDivElement, ReceiptProps>(
           )}
         </div>
 
+        {qrDataUrl && (
+          <div className="flex justify-center my-3">
+            <img src={qrDataUrl} alt="ZATCA QR" className="w-32 h-32" />
+          </div>
+        )}
+
         <div className="text-center mt-4 border-t border-dashed border-black pt-2">
           <p>شكراً لزيارتكم</p>
           {store?.email && <p className="text-[10px] mt-1">{store.email}</p>}
+          <p className="text-[9px] mt-1 text-black/70">فاتورة إلكترونية - هيئة الزكاة والضريبة</p>
         </div>
       </div>
     );
