@@ -4,9 +4,10 @@ import { useBranch } from "@/contexts/BranchContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Download, FileText, Loader2, QrCode, ShieldCheck, ShieldAlert, ShieldQuestion, Search } from "lucide-react";
+import { Download, FileText, Loader2, QrCode, ShieldCheck, ShieldAlert, ShieldQuestion, Search, PenLine } from "lucide-react";
 import QRCode from "qrcode";
 import { toast } from "sonner";
+import { signInvoiceWithCsid } from "@/lib/zatca/sign";
 
 interface Row {
   id: string;
@@ -22,6 +23,10 @@ interface Row {
   invoice_hash: string | null;
   qr_code: string | null;
   xml_content: string | null;
+  signing_status: string | null;
+  signature_value: string | null;
+  signed_at: string | null;
+  branch_id: string;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -45,13 +50,57 @@ export default function ZatcaInvoicesPage() {
   const [selected, setSelected] = useState<Row | null>(null);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [signing, setSigning] = useState(false);
+
+  const signNow = async (r: Row) => {
+    if (!r.xml_content || !r.invoice_hash || !r.uuid_zatca || r.icv == null) {
+      toast.error("بيانات الفاتورة ناقصة للتوقيع"); return;
+    }
+    setSigning(true);
+    try {
+      const { data: b } = await (supabase as any)
+        .from("branches").select("tax_number, organization_name, name").eq("id", r.branch_id).maybeSingle();
+      const result = await signInvoiceWithCsid({
+        branch_id: r.branch_id,
+        invoice_number: r.invoice_number,
+        uuid: r.uuid_zatca,
+        icv: r.icv,
+        issue_datetime: r.created_at,
+        xml: r.xml_content,
+        invoice_hash: r.invoice_hash,
+        previous_invoice_hash: r.previous_invoice_hash || "",
+        seller_name: b?.organization_name || b?.name || "",
+        vat_number: b?.tax_number || "",
+        total_with_vat: Number(r.total),
+        vat_total: Number(r.tax_amount),
+      });
+      if (!result) { toast.error("لم يتم إعداد CSID لهذا الفرع بعد"); return; }
+      const { error } = await (supabase as any).from("sales").update({
+        signed_xml: result.signed_xml,
+        signature_value: result.signature_value,
+        qr_code_signed: result.qr_code_signed,
+        qr_code: result.qr_code_signed,
+        xml_content: result.signed_xml,
+        signing_status: "signed",
+        signing_error: null,
+        signed_at: result.signed_at,
+      }).eq("id", r.id);
+      if (error) throw error;
+      toast.success("تم توقيع الفاتورة رقمياً");
+      await load();
+    } catch (err: any) {
+      toast.error("فشل التوقيع: " + (err?.message || err));
+    } finally {
+      setSigning(false);
+    }
+  };
 
   const load = async () => {
     if (!currentBranch) return;
     setLoading(true);
     const { data, error } = await (supabase as any)
       .from("sales")
-      .select("id, invoice_number, created_at, total, tax_amount, invoice_type, zatca_status, icv, uuid_zatca, previous_invoice_hash, invoice_hash, qr_code, xml_content")
+      .select("id, invoice_number, created_at, total, tax_amount, invoice_type, zatca_status, icv, uuid_zatca, previous_invoice_hash, invoice_hash, qr_code, xml_content, signing_status, signature_value, signed_at, branch_id")
       .eq("branch_id", currentBranch.id)
       .order("created_at", { ascending: false })
       .limit(200);
@@ -164,6 +213,23 @@ export default function ZatcaInvoicesPage() {
               <Detail label="UUID" value={selected.uuid_zatca || "—"} mono small />
               <Detail label="ICV" value={String(selected.icv ?? "—")} />
               <Detail label="حالة الإرسال" value={STATUS_LABEL[selected.zatca_status] || selected.zatca_status} />
+              <div>
+                <p className="text-xs text-muted-foreground">حالة التوقيع الرقمي</p>
+                {selected.signing_status === "signed" ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-success">
+                    <ShieldCheck className="h-3.5 w-3.5" /> موقّعة رقمياً
+                    {selected.signed_at && <span className="text-muted-foreground">— {new Date(selected.signed_at).toLocaleString("ar-SA")}</span>}
+                  </span>
+                ) : selected.signing_status === "failed" ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-destructive">
+                    <ShieldAlert className="h-3.5 w-3.5" /> فشل التوقيع
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <ShieldQuestion className="h-3.5 w-3.5" /> غير موقّعة
+                  </span>
+                )}
+              </div>
               {qrUrl && (
                 <div className="flex justify-center p-3 bg-white rounded-md">
                   <img src={qrUrl} alt="ZATCA QR" className="w-48 h-48" />
@@ -171,11 +237,16 @@ export default function ZatcaInvoicesPage() {
               )}
               <Detail label="Hash الحالي" value={selected.invoice_hash || "—"} mono small />
               <Detail label="Hash السابق (PIH)" value={selected.previous_invoice_hash || "—"} mono small />
+              {selected.signing_status !== "signed" && (
+                <Button size="sm" className="w-full bg-primary text-primary-foreground" disabled={signing} onClick={() => signNow(selected)}>
+                  {signing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><PenLine className="h-4 w-4 ml-1" /> توقيع رقمي الآن</>}
+                </Button>
+              )}
               <Button size="sm" variant="outline" className="w-full" onClick={() => downloadXml(selected)}>
                 <Download className="h-4 w-4 ml-1" /> تنزيل XML
               </Button>
               <p className="text-[10px] text-muted-foreground text-center">
-                * التوقيع الرقمي والإرسال المباشر إلى ZATCA يتطلبان إكمال الـ Onboarding والحصول على شهادة CSID.
+                * التوقيع يستخدم شهادة CSID المخزّنة للفرع. أعدّها من صفحة الفروع إذا لم تكن مضبوطة.
               </p>
             </div>
           )}

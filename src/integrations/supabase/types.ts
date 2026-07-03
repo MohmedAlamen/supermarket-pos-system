@@ -64,6 +64,10 @@ export type Database = {
           country_code: string
           created_at: string
           crn: string | null
+          csid_certificate_pem: string | null
+          csid_mode: string
+          csid_private_key_pem: string | null
+          csid_secret: string | null
           device_serial: string
           id: string
           invoice_counter: number
@@ -83,6 +87,10 @@ export type Database = {
           country_code?: string
           created_at?: string
           crn?: string | null
+          csid_certificate_pem?: string | null
+          csid_mode?: string
+          csid_private_key_pem?: string | null
+          csid_secret?: string | null
           device_serial?: string
           id?: string
           invoice_counter?: number
@@ -102,6 +110,10 @@ export type Database = {
           country_code?: string
           created_at?: string
           crn?: string | null
+          csid_certificate_pem?: string | null
+          csid_mode?: string
+          csid_private_key_pem?: string | null
+          csid_secret?: string | null
           device_serial?: string
           id?: string
           invoice_counter?: number
@@ -297,6 +309,12 @@ export type Database = {
           payments: Json
           previous_invoice_hash: string | null
           qr_code: string | null
+          qr_code_signed: string | null
+          signature_value: string | null
+          signed_at: string | null
+          signed_xml: string | null
+          signing_error: string | null
+          signing_status: string
           subtotal: number
           tax_amount: number
           total: number
@@ -324,6 +342,12 @@ export type Database = {
           payments?: Json
           previous_invoice_hash?: string | null
           qr_code?: string | null
+          qr_code_signed?: string | null
+          signature_value?: string | null
+          signed_at?: string | null
+          signed_xml?: string | null
+          signing_error?: string | null
+          signing_status?: string
           subtotal?: number
           tax_amount?: number
           total?: number
@@ -351,6 +375,12 @@ export type Database = {
           payments?: Json
           previous_invoice_hash?: string | null
           qr_code?: string | null
+          qr_code_signed?: string | null
+          signature_value?: string | null
+          signed_at?: string | null
+          signed_xml?: string | null
+          signing_error?: string | null
+          signing_status?: string
           subtotal?: number
           tax_amount?: number
           total?: number

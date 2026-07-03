@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { useBranches } from "@/hooks/useBranches";
 import { Branch } from "@/contexts/BranchContext";
+import BranchCsidDialog from "@/components/BranchCsidDialog";
 
 export default function BranchesPage() {
   const { branches, loading, addBranch, updateBranch, deleteBranch } = useBranches();
@@ -95,6 +96,12 @@ export default function BranchesPage() {
                 <td className="p-3 hidden sm:table-cell">{b.invoice_counter}</td>
                 <td className="p-3 hidden sm:table-cell text-muted-foreground">{b.phone || "—"}</td>
                 <td className="p-3 text-center">
+                  <BranchCsidDialog
+                    branchId={b.id}
+                    branchName={b.name}
+                    configured={!!(b as any).csid_certificate_pem}
+                    onSaved={() => { /* branches reload not strictly needed for this attr */ }}
+                  />
                   <button onClick={() => openEdit(b)} className="p-1.5 hover:bg-muted rounded-md text-info"><Edit2 className="h-4 w-4" /></button>
                   <button onClick={() => deleteBranch(b.id)} className="p-1.5 hover:bg-destructive/10 rounded-md text-destructive"><Trash2 className="h-4 w-4" /></button>
                 </td>

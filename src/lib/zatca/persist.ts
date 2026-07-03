@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { buildZatcaInvoice, GENESIS_PIH, type ZatcaLine } from "@/lib/zatca";
+import { signInvoiceWithCsid } from "@/lib/zatca/sign";
 
 export interface ZatcaBuildContext {
   branchId: string;
@@ -92,15 +93,47 @@ export async function buildAndPersistZatca(ctx: ZatcaBuildContext) {
     .update({ last_invoice_hash: built.invoiceHash })
     .eq("id", ctx.branchId);
 
+  // Digital signing (CSID) — Phase 2. Skips gracefully if branch has no CSID yet.
+  let signed: Awaited<ReturnType<typeof signInvoiceWithCsid>> = null;
+  let signingStatus: "signed" | "unsigned" | "failed" = "unsigned";
+  let signingError: string | null = null;
+  try {
+    signed = await signInvoiceWithCsid({
+      branch_id: ctx.branchId,
+      invoice_number: ctx.invoiceNumber,
+      uuid: built.uuid,
+      icv: ctx.icv,
+      issue_datetime: ctx.issueDateISO,
+      xml: built.xml,
+      invoice_hash: built.invoiceHash,
+      previous_invoice_hash: previousInvoiceHash,
+      seller_name: seller.name,
+      vat_number: seller.vatNumber,
+      total_with_vat: +ctx.total.toFixed(2),
+      vat_total: +ctx.taxAmount.toFixed(2),
+    });
+    if (signed) signingStatus = "signed";
+  } catch (err: any) {
+    console.error("ZATCA signing failed:", err);
+    signingStatus = "failed";
+    signingError = String(err?.message || err);
+  }
+
   return {
     uuid_zatca: built.uuid,
     previous_invoice_hash: previousInvoiceHash,
     invoice_hash: built.invoiceHash,
-    xml_content: built.xml,
-    qr_code: built.qrBase64,
+    xml_content: signed?.signed_xml || built.xml,
+    qr_code: signed?.qr_code_signed || built.qrBase64,
     icv: ctx.icv,
     invoice_type: ctx.invoiceType,
     zatca_status: "not_submitted" as const,
+    signed_xml: signed?.signed_xml || null,
+    signature_value: signed?.signature_value || null,
+    qr_code_signed: signed?.qr_code_signed || null,
+    signing_status: signingStatus,
+    signing_error: signingError,
+    signed_at: signed?.signed_at || null,
   };
 }
 
