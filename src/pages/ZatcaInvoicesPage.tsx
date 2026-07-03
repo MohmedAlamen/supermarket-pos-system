@@ -169,6 +169,23 @@ export default function ZatcaInvoicesPage() {
               <Detail label="UUID" value={selected.uuid_zatca || "—"} mono small />
               <Detail label="ICV" value={String(selected.icv ?? "—")} />
               <Detail label="حالة الإرسال" value={STATUS_LABEL[selected.zatca_status] || selected.zatca_status} />
+              <div>
+                <p className="text-xs text-muted-foreground">حالة التوقيع الرقمي</p>
+                {selected.signing_status === "signed" ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-success">
+                    <ShieldCheck className="h-3.5 w-3.5" /> موقّعة رقمياً
+                    {selected.signed_at && <span className="text-muted-foreground">— {new Date(selected.signed_at).toLocaleString("ar-SA")}</span>}
+                  </span>
+                ) : selected.signing_status === "failed" ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-destructive">
+                    <ShieldAlert className="h-3.5 w-3.5" /> فشل التوقيع
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <ShieldQuestion className="h-3.5 w-3.5" /> غير موقّعة
+                  </span>
+                )}
+              </div>
               {qrUrl && (
                 <div className="flex justify-center p-3 bg-white rounded-md">
                   <img src={qrUrl} alt="ZATCA QR" className="w-48 h-48" />
@@ -176,11 +193,16 @@ export default function ZatcaInvoicesPage() {
               )}
               <Detail label="Hash الحالي" value={selected.invoice_hash || "—"} mono small />
               <Detail label="Hash السابق (PIH)" value={selected.previous_invoice_hash || "—"} mono small />
+              {selected.signing_status !== "signed" && (
+                <Button size="sm" className="w-full bg-primary text-primary-foreground" disabled={signing} onClick={() => signNow(selected)}>
+                  {signing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><PenLine className="h-4 w-4 ml-1" /> توقيع رقمي الآن</>}
+                </Button>
+              )}
               <Button size="sm" variant="outline" className="w-full" onClick={() => downloadXml(selected)}>
                 <Download className="h-4 w-4 ml-1" /> تنزيل XML
               </Button>
               <p className="text-[10px] text-muted-foreground text-center">
-                * التوقيع الرقمي والإرسال المباشر إلى ZATCA يتطلبان إكمال الـ Onboarding والحصول على شهادة CSID.
+                * التوقيع يستخدم شهادة CSID المخزّنة للفرع. أعدّها من صفحة الفروع إذا لم تكن مضبوطة.
               </p>
             </div>
           )}
