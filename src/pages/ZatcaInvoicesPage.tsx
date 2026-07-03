@@ -50,6 +50,50 @@ export default function ZatcaInvoicesPage() {
   const [selected, setSelected] = useState<Row | null>(null);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [signing, setSigning] = useState(false);
+
+  const signNow = async (r: Row) => {
+    if (!r.xml_content || !r.invoice_hash || !r.uuid_zatca || r.icv == null) {
+      toast.error("بيانات الفاتورة ناقصة للتوقيع"); return;
+    }
+    setSigning(true);
+    try {
+      const { data: b } = await (supabase as any)
+        .from("branches").select("tax_number, organization_name, name").eq("id", r.branch_id).maybeSingle();
+      const result = await signInvoiceWithCsid({
+        branch_id: r.branch_id,
+        invoice_number: r.invoice_number,
+        uuid: r.uuid_zatca,
+        icv: r.icv,
+        issue_datetime: r.created_at,
+        xml: r.xml_content,
+        invoice_hash: r.invoice_hash,
+        previous_invoice_hash: r.previous_invoice_hash || "",
+        seller_name: b?.organization_name || b?.name || "",
+        vat_number: b?.tax_number || "",
+        total_with_vat: Number(r.total),
+        vat_total: Number(r.tax_amount),
+      });
+      if (!result) { toast.error("لم يتم إعداد CSID لهذا الفرع بعد"); return; }
+      const { error } = await (supabase as any).from("sales").update({
+        signed_xml: result.signed_xml,
+        signature_value: result.signature_value,
+        qr_code_signed: result.qr_code_signed,
+        qr_code: result.qr_code_signed,
+        xml_content: result.signed_xml,
+        signing_status: "signed",
+        signing_error: null,
+        signed_at: result.signed_at,
+      }).eq("id", r.id);
+      if (error) throw error;
+      toast.success("تم توقيع الفاتورة رقمياً");
+      await load();
+    } catch (err: any) {
+      toast.error("فشل التوقيع: " + (err?.message || err));
+    } finally {
+      setSigning(false);
+    }
+  };
 
   const load = async () => {
     if (!currentBranch) return;
