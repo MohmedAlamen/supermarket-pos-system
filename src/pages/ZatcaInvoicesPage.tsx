@@ -4,9 +4,10 @@ import { useBranch } from "@/contexts/BranchContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Download, FileText, Loader2, QrCode, ShieldCheck, ShieldAlert, ShieldQuestion, Search } from "lucide-react";
+import { Download, FileText, Loader2, QrCode, ShieldCheck, ShieldAlert, ShieldQuestion, Search, PenLine } from "lucide-react";
 import QRCode from "qrcode";
 import { toast } from "sonner";
+import { signInvoiceWithCsid } from "@/lib/zatca/sign";
 
 interface Row {
   id: string;
@@ -22,6 +23,10 @@ interface Row {
   invoice_hash: string | null;
   qr_code: string | null;
   xml_content: string | null;
+  signing_status: string | null;
+  signature_value: string | null;
+  signed_at: string | null;
+  branch_id: string;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -51,7 +56,7 @@ export default function ZatcaInvoicesPage() {
     setLoading(true);
     const { data, error } = await (supabase as any)
       .from("sales")
-      .select("id, invoice_number, created_at, total, tax_amount, invoice_type, zatca_status, icv, uuid_zatca, previous_invoice_hash, invoice_hash, qr_code, xml_content")
+      .select("id, invoice_number, created_at, total, tax_amount, invoice_type, zatca_status, icv, uuid_zatca, previous_invoice_hash, invoice_hash, qr_code, xml_content, signing_status, signature_value, signed_at, branch_id")
       .eq("branch_id", currentBranch.id)
       .order("created_at", { ascending: false })
       .limit(200);
