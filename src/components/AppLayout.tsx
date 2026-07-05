@@ -2,6 +2,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import LowStockAlert from "@/components/LowStockAlert";
 import BranchSelector from "@/components/BranchSelector";
+import StoreSelector from "@/components/StoreSelector";
 import OnlineIndicator from "@/components/OnlineIndicator";
 import AutoPrintSynced from "@/components/AutoPrintSynced";
 
@@ -13,6 +14,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="h-12 flex items-center border-b border-border bg-card px-4 gap-2 print:hidden">
             <SidebarTrigger className="mr-2" />
+            <StoreSelector />
             <BranchSelector />
             <div className="mr-auto flex items-center gap-3">
               <OnlineIndicator />
