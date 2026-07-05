@@ -21,6 +21,7 @@ export type Database = {
           id: string
           product_id: string
           stock: number
+          store_id: string | null
           updated_at: string
         }
         Insert: {
@@ -29,6 +30,7 @@ export type Database = {
           id?: string
           product_id: string
           stock?: number
+          store_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -37,6 +39,7 @@ export type Database = {
           id?: string
           product_id?: string
           stock?: number
+          store_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -52,6 +55,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "branch_stock_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
             referencedColumns: ["id"]
           },
         ]
@@ -77,6 +87,7 @@ export type Database = {
           name: string
           organization_name: string | null
           phone: string | null
+          store_id: string | null
           tax_number: string | null
           updated_at: string
         }
@@ -100,6 +111,7 @@ export type Database = {
           name: string
           organization_name?: string | null
           phone?: string | null
+          store_id?: string | null
           tax_number?: string | null
           updated_at?: string
         }
@@ -123,10 +135,19 @@ export type Database = {
           name?: string
           organization_name?: string | null
           phone?: string | null
+          store_id?: string | null
           tax_number?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "branches_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customers: {
         Row: {
@@ -138,6 +159,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          store_id: string | null
           total_purchases: number
           updated_at: string
         }
@@ -150,6 +172,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          store_id?: string | null
           total_purchases?: number
           updated_at?: string
         }
@@ -162,10 +185,19 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          store_id?: string | null
           total_purchases?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "customers_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
@@ -177,6 +209,7 @@ export type Database = {
           name: string
           price: number
           stock: number
+          store_id: string | null
         }
         Insert: {
           barcode?: string | null
@@ -187,6 +220,7 @@ export type Database = {
           name: string
           price?: number
           stock?: number
+          store_id?: string | null
         }
         Update: {
           barcode?: string | null
@@ -197,12 +231,22 @@ export type Database = {
           name?: string
           price?: number
           stock?: number
+          store_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
           created_at: string
+          current_store_id: string | null
           default_branch_id: string | null
           full_name: string
           id: string
@@ -210,6 +254,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          current_store_id?: string | null
           default_branch_id?: string | null
           full_name?: string
           id?: string
@@ -217,12 +262,20 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          current_store_id?: string | null
           default_branch_id?: string | null
           full_name?: string
           id?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_current_store_id_fkey"
+            columns: ["current_store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profiles_default_branch_id_fkey"
             columns: ["default_branch_id"]
@@ -243,6 +296,7 @@ export type Database = {
           notes: string | null
           paid: number
           payment_method: string
+          store_id: string | null
           supplier_id: string | null
           total: number
         }
@@ -256,6 +310,7 @@ export type Database = {
           notes?: string | null
           paid?: number
           payment_method?: string
+          store_id?: string | null
           supplier_id?: string | null
           total?: number
         }
@@ -269,6 +324,7 @@ export type Database = {
           notes?: string | null
           paid?: number
           payment_method?: string
+          store_id?: string | null
           supplier_id?: string | null
           total?: number
         }
@@ -278,6 +334,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
             referencedColumns: ["id"]
           },
           {
@@ -315,6 +378,7 @@ export type Database = {
           signed_xml: string | null
           signing_error: string | null
           signing_status: string
+          store_id: string | null
           subtotal: number
           tax_amount: number
           total: number
@@ -348,6 +412,7 @@ export type Database = {
           signed_xml?: string | null
           signing_error?: string | null
           signing_status?: string
+          store_id?: string | null
           subtotal?: number
           tax_amount?: number
           total?: number
@@ -381,6 +446,7 @@ export type Database = {
           signed_xml?: string | null
           signing_error?: string | null
           signing_status?: string
+          store_id?: string | null
           subtotal?: number
           tax_amount?: number
           total?: number
@@ -404,6 +470,48 @@ export type Database = {
             referencedRelation: "customers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sales_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_members: {
+        Row: {
+          created_at: string
+          id: string
+          invited_email: string | null
+          role: Database["public"]["Enums"]["store_role"]
+          store_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invited_email?: string | null
+          role?: Database["public"]["Enums"]["store_role"]
+          store_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invited_email?: string | null
+          role?: Database["public"]["Enums"]["store_role"]
+          store_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_members_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
         ]
       }
       store_settings: {
@@ -415,6 +523,7 @@ export type Database = {
           invoice_counter: number
           loyalty_points_per_unit: number
           phone: string | null
+          store_id: string | null
           store_name: string
           tax_number: string | null
           tax_rate: number
@@ -428,6 +537,7 @@ export type Database = {
           invoice_counter?: number
           loyalty_points_per_unit?: number
           phone?: string | null
+          store_id?: string | null
           store_name?: string
           tax_number?: string | null
           tax_rate?: number
@@ -441,9 +551,51 @@ export type Database = {
           invoice_counter?: number
           loyalty_points_per_unit?: number
           phone?: string | null
+          store_id?: string | null
           store_name?: string
           tax_number?: string | null
           tax_rate?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_settings_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stores: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          name: string
+          owner_id: string
+          slug: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name: string
+          owner_id: string
+          slug?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+          owner_id?: string
+          slug?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -459,6 +611,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          store_id: string | null
           updated_at: string
         }
         Insert: {
@@ -471,6 +624,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          store_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -483,9 +637,18 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          store_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -522,6 +685,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_store_role: {
+        Args: {
+          _roles: Database["public"]["Enums"]["store_role"][]
+          _store_id: string
+        }
+        Returns: boolean
+      }
+      is_store_member: { Args: { _store_id: string }; Returns: boolean }
+      is_store_owner: { Args: { _store_id: string }; Returns: boolean }
       zatca_advance_branch: {
         Args: { _branch_id: string; _new_hash: string }
         Returns: {
@@ -533,6 +705,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "cashier"
+      store_role: "owner" | "admin" | "manager" | "cashier"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -661,6 +834,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "cashier"],
+      store_role: ["owner", "admin", "manager", "cashier"],
     },
   },
 } as const

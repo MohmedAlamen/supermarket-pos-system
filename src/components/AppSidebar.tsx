@@ -1,4 +1,4 @@
-import { ShoppingCart, Package, BarChart3, Users, LogOut, UserCircle, Truck, Settings, ShoppingBag, Store, CloudUpload, FileText } from "lucide-react";
+import { ShoppingCart, Package, BarChart3, Users, LogOut, UserCircle, Truck, Settings, ShoppingBag, Store, CloudUpload, FileText, Building2 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +16,7 @@ import {
 
 const allItems = [
   { title: "نقطة البيع", url: "/", icon: ShoppingCart, roles: ["admin", "cashier"] },
+  { title: "المتاجر", url: "/stores", icon: Building2, roles: ["admin", "cashier"] },
   { title: "المنتجات", url: "/products", icon: Package, roles: ["admin"] },
   { title: "العملاء", url: "/customers", icon: UserCircle, roles: ["admin", "cashier"] },
   { title: "الموردين", url: "/suppliers", icon: Truck, roles: ["admin"] },
