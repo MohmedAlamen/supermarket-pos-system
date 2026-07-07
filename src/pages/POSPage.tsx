@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt, Loader2, ScanLine, UserCircle, X, Smartphone, Wallet, Building2, Split } from "lucide-react";
 import ReceiptPrint from "@/components/pos/ReceiptPrint";
+import LoyaltyCouponPanel, { AppliedCoupon } from "@/components/pos/LoyaltyCouponPanel";
 import BarcodeScanner from "@/components/pos/BarcodeScanner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
