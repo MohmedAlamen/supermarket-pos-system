@@ -52,7 +52,11 @@ const POSPage = () => {
   const [payMode, setPayMode] = useState<"single" | "split">("single");
   const [singleMethod, setSingleMethod] = useState<PayMethod>("cash");
   const [singleRef, setSingleRef] = useState("");
+  const [singleGateway, setSingleGateway] = useState<{ gateway_ref?: string; status?: "pending"|"approved"|"failed"; raw?: any } | null>(null);
+  const [singleMobile, setSingleMobile] = useState("");
+  const [gatewayLoading, setGatewayLoading] = useState<string | null>(null);
   const [splitLines, setSplitLines] = useState<PayLine[]>([{ method: "cash", amount: 0, reference: "" }]);
+  const { currentStore } = useStore();
   const [processing, setProcessing] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
