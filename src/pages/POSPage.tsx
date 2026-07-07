@@ -151,32 +151,87 @@ const POSPage = () => {
   const updateSplitLine = (i: number, patch: Partial<PayLine>) => setSplitLines((ls) => ls.map((l, idx) => idx === i ? { ...l, ...patch } : l));
   const removeSplitLine = (i: number) => setSplitLines((ls) => ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls);
 
+  const initiateSingle = async () => {
+    if (!currentStore) { toast.error("اختر متجراً أولاً"); return; }
+    if (!GATEWAY_METHODS.includes(singleMethod)) return;
+    if (total <= 0) { toast.error("لا يمكن الدفع بمبلغ صفر"); return; }
+    setGatewayLoading("single");
+    const res = await initiatePayment({
+      method: singleMethod as PayGatewayMethod, amount: total,
+      store_id: currentStore.id, mobile: singleMobile.trim() || undefined,
+    });
+    setGatewayLoading(null);
+    setSingleRef(res.reference);
+    setSingleGateway({ gateway_ref: res.gateway_ref, status: res.status as any, raw: res.raw });
+    if (res.status === "approved") toast.success(res.message);
+    else if (res.status === "pending") toast.info(res.message);
+    else toast.error(res.message);
+  };
+
+  const initiateSplit = async (i: number) => {
+    if (!currentStore) { toast.error("اختر متجراً أولاً"); return; }
+    const line = splitLines[i];
+    if (!GATEWAY_METHODS.includes(line.method)) return;
+    const amt = Number(line.amount) || 0;
+    if (amt <= 0) { toast.error("حدد المبلغ أولاً"); return; }
+    setGatewayLoading(`split-${i}`);
+    const res = await initiatePayment({
+      method: line.method as PayGatewayMethod, amount: amt,
+      store_id: currentStore.id, mobile: line.mobile,
+    });
+    setGatewayLoading(null);
+    updateSplitLine(i, { reference: res.reference, gateway_ref: res.gateway_ref, status: res.status as any, raw: res.raw });
+    if (res.status === "approved") toast.success(res.message);
+    else if (res.status === "pending") toast.info(res.message);
+    else toast.error(res.message);
+  };
+
   const completeSale = async () => {
     if (cart.length === 0) { toast.error("السلة فارغة"); return; }
 
-    let payments: { method: PayMethod; amount: number; reference?: string }[] = [];
+    let payments: any[] = [];
     let primaryMethod: string;
     let primaryRef: string | null = null;
+    let primaryGateway = "manual";
 
     if (payMode === "single") {
       const m = METHODS.find((x) => x.id === singleMethod)!;
       if (m.id === "cash") {
         if (!cashReceived || parseFloat(cashReceived) < total) { toast.error("المبلغ المدفوع أقل من الإجمالي"); return; }
       } else if (m.needsRef && !singleRef.trim()) {
-        toast.error(`أدخل الرقم المرجعي لعملية ${m.label}`); return;
+        toast.error(`أدخل الرقم المرجعي لعملية ${m.label} أو ابدأ العملية عبر البوابة`); return;
       }
-      payments = [{ method: m.id, amount: total, reference: singleRef.trim() || undefined }];
+      const ref = singleRef.trim() || (m.needsRef ? generateLocalReference(m.id) : undefined);
+      payments = [{
+        method: m.id, amount: total, reference: ref,
+        gateway: m.gateway ? "gateway" : "manual",
+        gateway_ref: singleGateway?.gateway_ref || null,
+        status: singleGateway?.status || "approved",
+        raw: singleGateway?.raw || null,
+      }];
       primaryMethod = m.id;
-      primaryRef = singleRef.trim() || null;
+      primaryRef = ref || null;
+      primaryGateway = m.gateway ? "gateway" : "manual";
     } else {
       if (Math.abs(splitRemaining) > 0.01) { toast.error(`المتبقي: ${splitRemaining.toFixed(2)} ر.س — يجب أن يساوي الإجمالي`); return; }
       for (const l of splitLines) {
         if (!l.amount || l.amount <= 0) { toast.error("كل طريقة دفع يجب أن يكون لها مبلغ"); return; }
         const m = METHODS.find((x) => x.id === l.method)!;
-        if (m.needsRef && !l.reference.trim()) { toast.error(`أدخل الرقم المرجعي لعملية ${m.label}`); return; }
+        if (m.needsRef && !l.reference.trim()) { toast.error(`أدخل مرجع ${m.label} أو ابدأ العملية`); return; }
       }
-      payments = splitLines.map((l) => ({ method: l.method, amount: +Number(l.amount).toFixed(2), reference: l.reference.trim() || undefined }));
+      payments = splitLines.map((l) => {
+        const m = METHODS.find((x) => x.id === l.method)!;
+        return {
+          method: l.method, amount: +Number(l.amount).toFixed(2),
+          reference: l.reference.trim() || (m.needsRef ? generateLocalReference(l.method) : undefined),
+          gateway: m.gateway ? "gateway" : "manual",
+          gateway_ref: l.gateway_ref || null,
+          status: l.status || "approved",
+          raw: l.raw || null,
+        };
+      });
       primaryMethod = "mixed";
+      primaryGateway = "mixed";
     }
 
     setProcessing(true);
