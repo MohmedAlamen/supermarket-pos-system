@@ -149,6 +149,142 @@ export type Database = {
           },
         ]
       }
+      coupon_redemptions: {
+        Row: {
+          coupon_id: string
+          customer_id: string | null
+          discount_applied: number
+          id: string
+          is_reversed: boolean
+          redeemed_at: string
+          redeemed_by: string | null
+          reversed_at: string | null
+          sale_id: string | null
+          store_id: string
+        }
+        Insert: {
+          coupon_id: string
+          customer_id?: string | null
+          discount_applied?: number
+          id?: string
+          is_reversed?: boolean
+          redeemed_at?: string
+          redeemed_by?: string | null
+          reversed_at?: string | null
+          sale_id?: string | null
+          store_id: string
+        }
+        Update: {
+          coupon_id?: string
+          customer_id?: string | null
+          discount_applied?: number
+          id?: string
+          is_reversed?: boolean
+          redeemed_at?: string
+          redeemed_by?: string | null
+          reversed_at?: string | null
+          sale_id?: string | null
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_redemptions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupons: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          ends_at: string | null
+          id: string
+          is_active: boolean
+          max_discount: number | null
+          min_subtotal: number
+          per_customer_limit: number | null
+          starts_at: string | null
+          store_id: string
+          total_uses_limit: number | null
+          type: Database["public"]["Enums"]["coupon_type"]
+          updated_at: string
+          uses_count: number
+          value: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_discount?: number | null
+          min_subtotal?: number
+          per_customer_limit?: number | null
+          starts_at?: string | null
+          store_id: string
+          total_uses_limit?: number | null
+          type?: Database["public"]["Enums"]["coupon_type"]
+          updated_at?: string
+          uses_count?: number
+          value?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_discount?: number | null
+          min_subtotal?: number
+          per_customer_limit?: number | null
+          starts_at?: string | null
+          store_id?: string
+          total_uses_limit?: number | null
+          type?: Database["public"]["Enums"]["coupon_type"]
+          updated_at?: string
+          uses_count?: number
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupons_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
@@ -192,6 +328,111 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "customers_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_programs: {
+        Row: {
+          created_at: string
+          currency_per_point: number
+          expire_after_months: number | null
+          id: string
+          is_active: boolean
+          min_redeem_points: number
+          points_per_currency: number
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency_per_point?: number
+          expire_after_months?: number | null
+          id?: string
+          is_active?: boolean
+          min_redeem_points?: number
+          points_per_currency?: number
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency_per_point?: number
+          expire_after_months?: number | null
+          id?: string
+          is_active?: boolean
+          min_redeem_points?: number
+          points_per_currency?: number
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_programs_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: true
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_transactions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          expires_at: string | null
+          id: string
+          points: number
+          reason: string | null
+          sale_id: string | null
+          store_id: string
+          type: Database["public"]["Enums"]["loyalty_txn_type"]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          expires_at?: string | null
+          id?: string
+          points: number
+          reason?: string | null
+          sale_id?: string | null
+          store_id: string
+          type: Database["public"]["Enums"]["loyalty_txn_type"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          expires_at?: string | null
+          id?: string
+          points?: number
+          reason?: string | null
+          sale_id?: string | null
+          store_id?: string
+          type?: Database["public"]["Enums"]["loyalty_txn_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_transactions_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_transactions_store_id_fkey"
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
@@ -356,6 +597,9 @@ export type Database = {
         Row: {
           branch_id: string | null
           cashier_id: string | null
+          coupon_code: string | null
+          coupon_discount: number
+          coupon_id: string | null
           created_at: string
           customer_id: string | null
           discount: number
@@ -365,6 +609,9 @@ export type Database = {
           invoice_number: string | null
           invoice_type: string
           items: Json
+          loyalty_discount: number
+          loyalty_points_earned: number
+          loyalty_points_redeemed: number
           payment_gateway: string
           payment_method: string
           payment_reference: string | null
@@ -390,6 +637,9 @@ export type Database = {
         Insert: {
           branch_id?: string | null
           cashier_id?: string | null
+          coupon_code?: string | null
+          coupon_discount?: number
+          coupon_id?: string | null
           created_at?: string
           customer_id?: string | null
           discount?: number
@@ -399,6 +649,9 @@ export type Database = {
           invoice_number?: string | null
           invoice_type?: string
           items?: Json
+          loyalty_discount?: number
+          loyalty_points_earned?: number
+          loyalty_points_redeemed?: number
           payment_gateway?: string
           payment_method?: string
           payment_reference?: string | null
@@ -424,6 +677,9 @@ export type Database = {
         Update: {
           branch_id?: string | null
           cashier_id?: string | null
+          coupon_code?: string | null
+          coupon_discount?: number
+          coupon_id?: string | null
           created_at?: string
           customer_id?: string | null
           discount?: number
@@ -433,6 +689,9 @@ export type Database = {
           invoice_number?: string | null
           invoice_type?: string
           items?: Json
+          loyalty_discount?: number
+          loyalty_points_earned?: number
+          loyalty_points_redeemed?: number
           payment_gateway?: string
           payment_method?: string
           payment_reference?: string | null
@@ -461,6 +720,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
             referencedColumns: ["id"]
           },
           {
@@ -678,6 +944,7 @@ export type Database = {
         Returns: string
       }
       generate_invoice_number: { Args: never; Returns: string }
+      get_customer_points: { Args: { _customer_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -694,6 +961,20 @@ export type Database = {
       }
       is_store_member: { Args: { _store_id: string }; Returns: boolean }
       is_store_owner: { Args: { _store_id: string }; Returns: boolean }
+      validate_coupon: {
+        Args: {
+          _code: string
+          _customer_id: string
+          _store_id: string
+          _subtotal: number
+        }
+        Returns: {
+          coupon_id: string
+          discount: number
+          message: string
+          valid: boolean
+        }[]
+      }
       zatca_advance_branch: {
         Args: { _branch_id: string; _new_hash: string }
         Returns: {
@@ -705,6 +986,8 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "cashier"
+      coupon_type: "percent" | "fixed" | "free_shipping"
+      loyalty_txn_type: "earn" | "redeem" | "adjust" | "expire" | "refund"
       store_role: "owner" | "admin" | "manager" | "cashier"
     }
     CompositeTypes: {
@@ -834,6 +1117,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "cashier"],
+      coupon_type: ["percent", "fixed", "free_shipping"],
+      loyalty_txn_type: ["earn", "redeem", "adjust", "expire", "refund"],
       store_role: ["owner", "admin", "manager", "cashier"],
     },
   },
