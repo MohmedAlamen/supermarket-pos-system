@@ -340,6 +340,15 @@ const POSPage = () => {
         </div>
 
         <div className="p-4 border-t border-border space-y-3">
+          <LoyaltyCouponPanel
+            customer={selectedCustomer}
+            subtotal={subtotal - discountAmount}
+            appliedCoupon={appliedCoupon}
+            onCouponChange={setAppliedCoupon}
+            pointsToRedeem={loyaltyRedeem.points}
+            onPointsChange={(points, discount) => setLoyaltyRedeem({ points, discount })}
+          />
+
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">خصم %</span>
             <Input type="number" value={discount || ""} onChange={(e) => setDiscount(Number(e.target.value))} className="w-20 h-8 text-center bg-secondary border-border" min={0} max={100} />
@@ -356,6 +365,18 @@ const POSPage = () => {
                 <span>الخصم ({discount}%)</span>
               </div>
             )}
+            {couponDiscount > 0 && (
+              <div className="flex justify-between text-destructive">
+                <span>-{couponDiscount.toFixed(2)} ر.س</span>
+                <span>كوبون {appliedCoupon?.code}</span>
+              </div>
+            )}
+            {loyaltyDiscount > 0 && (
+              <div className="flex justify-between text-destructive">
+                <span>-{loyaltyDiscount.toFixed(2)} ر.س</span>
+                <span>نقاط الولاء ({loyaltyRedeem.points})</span>
+              </div>
+            )}
             {taxRate > 0 && (
               <div className="flex justify-between text-muted-foreground">
                 <span>+{taxAmount.toFixed(2)} ر.س</span>
@@ -367,6 +388,7 @@ const POSPage = () => {
               <span>الإجمالي</span>
             </div>
           </div>
+
 
           {showCheckout ? (
             <div className="space-y-3 animate-slide-in max-h-[55vh] overflow-y-auto pr-1">
