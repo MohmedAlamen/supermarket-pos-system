@@ -50,6 +50,8 @@ const POSPage = () => {
   const [showCheckout, setShowCheckout] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [loyaltyRedeem, setLoyaltyRedeem] = useState<{ points: number; discount: number }>({ points: 0, discount: 0 });
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
