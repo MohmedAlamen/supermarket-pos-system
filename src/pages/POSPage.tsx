@@ -119,7 +119,9 @@ const POSPage = () => {
 
   const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const discountAmount = (subtotal * discount) / 100;
-  const afterDiscount = subtotal - discountAmount;
+  const couponDiscount = appliedCoupon?.discount || 0;
+  const loyaltyDiscount = loyaltyRedeem.discount || 0;
+  const afterDiscount = Math.max(0, subtotal - discountAmount - couponDiscount - loyaltyDiscount);
   const taxRate = Number(settings.tax_rate) || 0;
   const taxAmount = (afterDiscount * taxRate) / 100;
   const total = afterDiscount + taxAmount;
