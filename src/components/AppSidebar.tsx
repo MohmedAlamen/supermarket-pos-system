@@ -1,4 +1,4 @@
-import { ShoppingCart, Package, BarChart3, Users, LogOut, UserCircle, Truck, Settings, ShoppingBag, Store, CloudUpload, FileText, Building2 } from "lucide-react";
+import { ShoppingCart, Package, BarChart3, Users, LogOut, UserCircle, Truck, Settings, ShoppingBag, Store, CloudUpload, FileText, Building2, Gift, Tag, RotateCcw } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
