@@ -216,6 +216,8 @@ const POSPage = () => {
     setPayMode("single");
     setSingleMethod("cash");
     setSelectedCustomer(null);
+    setAppliedCoupon(null);
+    setLoyaltyRedeem({ points: 0, discount: 0 });
     setShowCheckout(false);
     setTimeout(() => window.print(), 300);
   };
