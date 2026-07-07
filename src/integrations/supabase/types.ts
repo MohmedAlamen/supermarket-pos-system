@@ -440,6 +440,69 @@ export type Database = {
           },
         ]
       }
+      payment_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          gateway: string
+          gateway_ref: string | null
+          id: string
+          method: string
+          raw_response: Json | null
+          reference: string
+          sale_id: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          gateway?: string
+          gateway_ref?: string | null
+          id?: string
+          method: string
+          raw_response?: Json | null
+          reference: string
+          sale_id?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          gateway?: string
+          gateway_ref?: string | null
+          id?: string
+          method?: string
+          raw_response?: Json | null
+          reference?: string
+          sale_id?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           barcode: string | null
@@ -988,6 +1051,7 @@ export type Database = {
       app_role: "admin" | "cashier"
       coupon_type: "percent" | "fixed" | "free_shipping"
       loyalty_txn_type: "earn" | "redeem" | "adjust" | "expire" | "refund"
+      payment_status: "pending" | "approved" | "failed" | "refunded" | "voided"
       store_role: "owner" | "admin" | "manager" | "cashier"
     }
     CompositeTypes: {
@@ -1119,6 +1183,7 @@ export const Constants = {
       app_role: ["admin", "cashier"],
       coupon_type: ["percent", "fixed", "free_shipping"],
       loyalty_txn_type: ["earn", "redeem", "adjust", "expire", "refund"],
+      payment_status: ["pending", "approved", "failed", "refunded", "voided"],
       store_role: ["owner", "admin", "manager", "cashier"],
     },
   },
