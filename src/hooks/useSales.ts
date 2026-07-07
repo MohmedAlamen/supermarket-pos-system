@@ -32,6 +32,8 @@ export function useSales() {
     payment_status?: string;
     payment_reference?: string | null;
     payment_gateway?: string;
+    coupon?: { id: string; code: string; discount: number } | null;
+    loyalty?: { points_redeemed: number; loyalty_discount: number } | null;
   }): Promise<{ ok: boolean; invoice_number?: string; qr_code?: string; offline?: boolean }> => {
     if (!user) { toast.error("يجب تسجيل الدخول أولاً"); return { ok: false }; }
     if (!currentBranch) { toast.error("يجب اختيار الفرع أولاً"); return { ok: false }; }
