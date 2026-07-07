@@ -178,6 +178,8 @@ const POSPage = () => {
       payment_status: "paid",
       payment_reference: primaryRef,
       payment_gateway: "manual",
+      coupon: appliedCoupon,
+      loyalty: loyaltyRedeem.points > 0 ? { points_redeemed: loyaltyRedeem.points, loyalty_discount: loyaltyRedeem.discount } : null,
     });
     setProcessing(false);
 
