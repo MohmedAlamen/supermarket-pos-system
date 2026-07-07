@@ -284,6 +284,8 @@ const POSPage = () => {
     setDiscount(0);
     setCashReceived("");
     setSingleRef("");
+    setSingleGateway(null);
+    setSingleMobile("");
     setSplitLines([{ method: "cash", amount: 0, reference: "" }]);
     setPayMode("single");
     setSingleMethod("cash");
