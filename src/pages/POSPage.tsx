@@ -275,7 +275,7 @@ const POSPage = () => {
       payments,
       payment_status: "paid",
       payment_reference: primaryRef,
-      payment_gateway: "manual",
+      payment_gateway: primaryGateway,
       qr_code: saved.qr_code,
     });
 
