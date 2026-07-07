@@ -20,6 +20,9 @@ import PurchasesPage from "./pages/PurchasesPage";
 import BranchesPage from "./pages/BranchesPage";
 import PendingInvoicesPage from "./pages/PendingInvoicesPage";
 import ZatcaInvoicesPage from "./pages/ZatcaInvoicesPage";
+import LoyaltyPage from "./pages/LoyaltyPage";
+import CouponsPage from "./pages/CouponsPage";
+import RedemptionsPage from "./pages/RedemptionsPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 
