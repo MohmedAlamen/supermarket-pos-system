@@ -473,11 +473,11 @@ const POSPage = () => {
 
               {payMode === "single" ? (
                 <div className="space-y-2">
-                  <div className="grid grid-cols-5 gap-1">
+                  <div className="grid grid-cols-6 gap-1">
                     {METHODS.map((m) => {
                       const Icon = m.icon;
                       return (
-                        <button key={m.id} onClick={() => setSingleMethod(m.id)} className={`flex flex-col items-center gap-1 p-2 rounded-md border text-[10px] ${singleMethod === m.id ? "bg-primary/15 border-primary text-primary" : "bg-secondary border-border"}`} title={m.label}>
+                        <button key={m.id} onClick={() => { setSingleMethod(m.id); setSingleGateway(null); setSingleRef(""); }} className={`flex flex-col items-center gap-1 p-2 rounded-md border text-[10px] ${singleMethod === m.id ? "bg-primary/15 border-primary text-primary" : "bg-secondary border-border"}`} title={m.label}>
                           <Icon className="h-4 w-4" />
                           <span className="leading-tight">{m.label}</span>
                         </button>
@@ -492,9 +492,36 @@ const POSPage = () => {
                       )}
                     </>
                   ) : (
-                    <div>
-                      <Label className="text-xs">رقم العملية / المرجع</Label>
-                      <Input value={singleRef} onChange={(e) => setSingleRef(e.target.value)} placeholder="من جهاز POS / إشعار STC / ..." className="bg-secondary border-border" />
+                    <div className="space-y-2">
+                      {singleMethod === "stcpay" && (
+                        <div>
+                          <Label className="text-xs">جوّال STC Pay (اختياري)</Label>
+                          <Input value={singleMobile} onChange={(e) => setSingleMobile(e.target.value)} placeholder="05xxxxxxxx" className="bg-secondary border-border h-8 text-xs" />
+                        </div>
+                      )}
+                      {GATEWAY_METHODS.includes(singleMethod) && (
+                        <Button
+                          type="button" size="sm" variant="outline"
+                          onClick={initiateSingle}
+                          disabled={gatewayLoading === "single" || total <= 0}
+                          className="w-full h-8 text-xs"
+                        >
+                          {gatewayLoading === "single"
+                            ? <Loader2 className="h-3 w-3 animate-spin" />
+                            : <><Zap className="h-3 w-3 ml-1" />بدء العملية عبر بوابة {METHODS.find(m => m.id === singleMethod)?.label}</>}
+                        </Button>
+                      )}
+                      <div>
+                        <Label className="text-xs flex items-center gap-1">
+                          رقم العملية / المرجع
+                          {singleGateway?.status === "approved" && <CheckCircle2 className="h-3 w-3 text-success" />}
+                          {singleGateway?.status === "pending" && <span className="text-warning text-[10px]">(معلّق)</span>}
+                        </Label>
+                        <Input value={singleRef} onChange={(e) => setSingleRef(e.target.value)} placeholder="سيولَّد تلقائياً أو أدخله يدوياً" className="bg-secondary border-border font-mono text-xs" />
+                        {singleGateway?.gateway_ref && (
+                          <p className="text-[10px] text-muted-foreground mt-1 font-mono">مرجع البوابة: {singleGateway.gateway_ref}</p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -503,14 +530,24 @@ const POSPage = () => {
                   {splitLines.map((line, i) => (
                     <div key={i} className="bg-secondary/60 rounded-md p-2 space-y-1.5">
                       <div className="flex items-center gap-1.5">
-                        <select value={line.method} onChange={(e) => updateSplitLine(i, { method: e.target.value as PayMethod })} className="flex-1 bg-background border border-border rounded-md h-8 text-xs px-2">
+                        <select value={line.method} onChange={(e) => updateSplitLine(i, { method: e.target.value as PayMethod, reference: "", gateway_ref: undefined, status: undefined })} className="flex-1 bg-background border border-border rounded-md h-8 text-xs px-2">
                           {METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
                         </select>
                         <Input type="number" value={line.amount || ""} onChange={(e) => updateSplitLine(i, { amount: Number(e.target.value) })} placeholder="المبلغ" className="w-24 h-8 text-center bg-background border-border text-xs" />
                         <button onClick={() => removeSplitLine(i)} className="text-destructive p-1 disabled:opacity-30" disabled={splitLines.length === 1}><X className="h-4 w-4" /></button>
                       </div>
                       {METHODS.find((m) => m.id === line.method)?.needsRef && (
-                        <Input value={line.reference} onChange={(e) => updateSplitLine(i, { reference: e.target.value })} placeholder="رقم المرجع" className="bg-background border-border h-7 text-xs" />
+                        <div className="space-y-1">
+                          {GATEWAY_METHODS.includes(line.method) && (
+                            <Button size="sm" variant="outline" onClick={() => initiateSplit(i)} disabled={gatewayLoading === `split-${i}` || !line.amount} className="w-full h-7 text-[11px]">
+                              {gatewayLoading === `split-${i}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Zap className="h-3 w-3 ml-1" />بدء عبر البوابة</>}
+                            </Button>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <Input value={line.reference} onChange={(e) => updateSplitLine(i, { reference: e.target.value })} placeholder="رقم المرجع" className="bg-background border-border h-7 text-xs font-mono" />
+                            {line.status === "approved" && <CheckCircle2 className="h-3 w-3 text-success shrink-0" />}
+                          </div>
+                        </div>
                       )}
                     </div>
                   ))}
