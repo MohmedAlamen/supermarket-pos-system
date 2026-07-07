@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt, Loader2, ScanLine, UserCircle, X, Smartphone, Wallet, Building2, Split } from "lucide-react";
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt, Loader2, ScanLine, UserCircle, X, Smartphone, Wallet, Building2, Split, Zap, CheckCircle2 } from "lucide-react";
 import ReceiptPrint from "@/components/pos/ReceiptPrint";
 import LoyaltyCouponPanel, { AppliedCoupon } from "@/components/pos/LoyaltyCouponPanel";
 import BarcodeScanner from "@/components/pos/BarcodeScanner";
@@ -13,14 +13,27 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { Product, CartItem, Customer } from "@/types/pos";
 import { toast } from "sonner";
+import { initiatePayment, generateLocalReference, type PayGatewayMethod } from "@/lib/payments";
+import { useStore } from "@/contexts/StoreContext";
 
-type PayMethod = "cash" | "card" | "stcpay" | "applepay" | "bank";
-interface PayLine { method: PayMethod; amount: number; reference: string; }
+type PayMethod = "cash" | "card" | "mada" | "stcpay" | "applepay" | "bank";
+interface PayLine {
+  method: PayMethod;
+  amount: number;
+  reference: string;
+  gateway_ref?: string;
+  status?: "pending" | "approved" | "failed";
+  mobile?: string;
+  raw?: Record<string, unknown> | null;
+}
 
-const METHODS: { id: PayMethod; label: string; icon: any; needsRef: boolean }[] = [
+const GATEWAY_METHODS: PayMethod[] = ["stcpay", "mada", "card"];
+
+const METHODS: { id: PayMethod; label: string; icon: any; needsRef: boolean; gateway?: boolean }[] = [
   { id: "cash", label: "نقدي", icon: Banknote, needsRef: false },
-  { id: "card", label: "بطاقة", icon: CreditCard, needsRef: true },
-  { id: "stcpay", label: "STC Pay", icon: Smartphone, needsRef: true },
+  { id: "mada", label: "مدى", icon: CreditCard, needsRef: true, gateway: true },
+  { id: "card", label: "بطاقة", icon: CreditCard, needsRef: true, gateway: true },
+  { id: "stcpay", label: "STC Pay", icon: Smartphone, needsRef: true, gateway: true },
   { id: "applepay", label: "Apple Pay", icon: Wallet, needsRef: true },
   { id: "bank", label: "تحويل بنكي", icon: Building2, needsRef: true },
 ];
@@ -39,7 +52,11 @@ const POSPage = () => {
   const [payMode, setPayMode] = useState<"single" | "split">("single");
   const [singleMethod, setSingleMethod] = useState<PayMethod>("cash");
   const [singleRef, setSingleRef] = useState("");
+  const [singleGateway, setSingleGateway] = useState<{ gateway_ref?: string; status?: "pending"|"approved"|"failed"; raw?: any } | null>(null);
+  const [singleMobile, setSingleMobile] = useState("");
+  const [gatewayLoading, setGatewayLoading] = useState<string | null>(null);
   const [splitLines, setSplitLines] = useState<PayLine[]>([{ method: "cash", amount: 0, reference: "" }]);
+  const { currentStore } = useStore();
   const [processing, setProcessing] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -134,32 +151,87 @@ const POSPage = () => {
   const updateSplitLine = (i: number, patch: Partial<PayLine>) => setSplitLines((ls) => ls.map((l, idx) => idx === i ? { ...l, ...patch } : l));
   const removeSplitLine = (i: number) => setSplitLines((ls) => ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls);
 
+  const initiateSingle = async () => {
+    if (!currentStore) { toast.error("اختر متجراً أولاً"); return; }
+    if (!GATEWAY_METHODS.includes(singleMethod)) return;
+    if (total <= 0) { toast.error("لا يمكن الدفع بمبلغ صفر"); return; }
+    setGatewayLoading("single");
+    const res = await initiatePayment({
+      method: singleMethod as PayGatewayMethod, amount: total,
+      store_id: currentStore.id, mobile: singleMobile.trim() || undefined,
+    });
+    setGatewayLoading(null);
+    setSingleRef(res.reference);
+    setSingleGateway({ gateway_ref: res.gateway_ref, status: res.status as any, raw: res.raw });
+    if (res.status === "approved") toast.success(res.message);
+    else if (res.status === "pending") toast.info(res.message);
+    else toast.error(res.message);
+  };
+
+  const initiateSplit = async (i: number) => {
+    if (!currentStore) { toast.error("اختر متجراً أولاً"); return; }
+    const line = splitLines[i];
+    if (!GATEWAY_METHODS.includes(line.method)) return;
+    const amt = Number(line.amount) || 0;
+    if (amt <= 0) { toast.error("حدد المبلغ أولاً"); return; }
+    setGatewayLoading(`split-${i}`);
+    const res = await initiatePayment({
+      method: line.method as PayGatewayMethod, amount: amt,
+      store_id: currentStore.id, mobile: line.mobile,
+    });
+    setGatewayLoading(null);
+    updateSplitLine(i, { reference: res.reference, gateway_ref: res.gateway_ref, status: res.status as any, raw: res.raw });
+    if (res.status === "approved") toast.success(res.message);
+    else if (res.status === "pending") toast.info(res.message);
+    else toast.error(res.message);
+  };
+
   const completeSale = async () => {
     if (cart.length === 0) { toast.error("السلة فارغة"); return; }
 
-    let payments: { method: PayMethod; amount: number; reference?: string }[] = [];
+    let payments: any[] = [];
     let primaryMethod: string;
     let primaryRef: string | null = null;
+    let primaryGateway = "manual";
 
     if (payMode === "single") {
       const m = METHODS.find((x) => x.id === singleMethod)!;
       if (m.id === "cash") {
         if (!cashReceived || parseFloat(cashReceived) < total) { toast.error("المبلغ المدفوع أقل من الإجمالي"); return; }
       } else if (m.needsRef && !singleRef.trim()) {
-        toast.error(`أدخل الرقم المرجعي لعملية ${m.label}`); return;
+        toast.error(`أدخل الرقم المرجعي لعملية ${m.label} أو ابدأ العملية عبر البوابة`); return;
       }
-      payments = [{ method: m.id, amount: total, reference: singleRef.trim() || undefined }];
+      const ref = singleRef.trim() || (m.needsRef ? generateLocalReference(m.id) : undefined);
+      payments = [{
+        method: m.id, amount: total, reference: ref,
+        gateway: m.gateway ? "gateway" : "manual",
+        gateway_ref: singleGateway?.gateway_ref || null,
+        status: singleGateway?.status || "approved",
+        raw: singleGateway?.raw || null,
+      }];
       primaryMethod = m.id;
-      primaryRef = singleRef.trim() || null;
+      primaryRef = ref || null;
+      primaryGateway = m.gateway ? "gateway" : "manual";
     } else {
       if (Math.abs(splitRemaining) > 0.01) { toast.error(`المتبقي: ${splitRemaining.toFixed(2)} ر.س — يجب أن يساوي الإجمالي`); return; }
       for (const l of splitLines) {
         if (!l.amount || l.amount <= 0) { toast.error("كل طريقة دفع يجب أن يكون لها مبلغ"); return; }
         const m = METHODS.find((x) => x.id === l.method)!;
-        if (m.needsRef && !l.reference.trim()) { toast.error(`أدخل الرقم المرجعي لعملية ${m.label}`); return; }
+        if (m.needsRef && !l.reference.trim()) { toast.error(`أدخل مرجع ${m.label} أو ابدأ العملية`); return; }
       }
-      payments = splitLines.map((l) => ({ method: l.method, amount: +Number(l.amount).toFixed(2), reference: l.reference.trim() || undefined }));
+      payments = splitLines.map((l) => {
+        const m = METHODS.find((x) => x.id === l.method)!;
+        return {
+          method: l.method, amount: +Number(l.amount).toFixed(2),
+          reference: l.reference.trim() || (m.needsRef ? generateLocalReference(l.method) : undefined),
+          gateway: m.gateway ? "gateway" : "manual",
+          gateway_ref: l.gateway_ref || null,
+          status: l.status || "approved",
+          raw: l.raw || null,
+        };
+      });
       primaryMethod = "mixed";
+      primaryGateway = "mixed";
     }
 
     setProcessing(true);
@@ -177,7 +249,7 @@ const POSPage = () => {
       payments,
       payment_status: "paid",
       payment_reference: primaryRef,
-      payment_gateway: "manual",
+      payment_gateway: primaryGateway,
       coupon: appliedCoupon,
       loyalty: loyaltyRedeem.points > 0 ? { points_redeemed: loyaltyRedeem.points, loyalty_discount: loyaltyRedeem.discount } : null,
     });
@@ -203,7 +275,7 @@ const POSPage = () => {
       payments,
       payment_status: "paid",
       payment_reference: primaryRef,
-      payment_gateway: "manual",
+      payment_gateway: primaryGateway,
       qr_code: saved.qr_code,
     });
 
@@ -212,6 +284,8 @@ const POSPage = () => {
     setDiscount(0);
     setCashReceived("");
     setSingleRef("");
+    setSingleGateway(null);
+    setSingleMobile("");
     setSplitLines([{ method: "cash", amount: 0, reference: "" }]);
     setPayMode("single");
     setSingleMethod("cash");
@@ -399,11 +473,11 @@ const POSPage = () => {
 
               {payMode === "single" ? (
                 <div className="space-y-2">
-                  <div className="grid grid-cols-5 gap-1">
+                  <div className="grid grid-cols-6 gap-1">
                     {METHODS.map((m) => {
                       const Icon = m.icon;
                       return (
-                        <button key={m.id} onClick={() => setSingleMethod(m.id)} className={`flex flex-col items-center gap-1 p-2 rounded-md border text-[10px] ${singleMethod === m.id ? "bg-primary/15 border-primary text-primary" : "bg-secondary border-border"}`} title={m.label}>
+                        <button key={m.id} onClick={() => { setSingleMethod(m.id); setSingleGateway(null); setSingleRef(""); }} className={`flex flex-col items-center gap-1 p-2 rounded-md border text-[10px] ${singleMethod === m.id ? "bg-primary/15 border-primary text-primary" : "bg-secondary border-border"}`} title={m.label}>
                           <Icon className="h-4 w-4" />
                           <span className="leading-tight">{m.label}</span>
                         </button>
@@ -418,9 +492,36 @@ const POSPage = () => {
                       )}
                     </>
                   ) : (
-                    <div>
-                      <Label className="text-xs">رقم العملية / المرجع</Label>
-                      <Input value={singleRef} onChange={(e) => setSingleRef(e.target.value)} placeholder="من جهاز POS / إشعار STC / ..." className="bg-secondary border-border" />
+                    <div className="space-y-2">
+                      {singleMethod === "stcpay" && (
+                        <div>
+                          <Label className="text-xs">جوّال STC Pay (اختياري)</Label>
+                          <Input value={singleMobile} onChange={(e) => setSingleMobile(e.target.value)} placeholder="05xxxxxxxx" className="bg-secondary border-border h-8 text-xs" />
+                        </div>
+                      )}
+                      {GATEWAY_METHODS.includes(singleMethod) && (
+                        <Button
+                          type="button" size="sm" variant="outline"
+                          onClick={initiateSingle}
+                          disabled={gatewayLoading === "single" || total <= 0}
+                          className="w-full h-8 text-xs"
+                        >
+                          {gatewayLoading === "single"
+                            ? <Loader2 className="h-3 w-3 animate-spin" />
+                            : <><Zap className="h-3 w-3 ml-1" />بدء العملية عبر بوابة {METHODS.find(m => m.id === singleMethod)?.label}</>}
+                        </Button>
+                      )}
+                      <div>
+                        <Label className="text-xs flex items-center gap-1">
+                          رقم العملية / المرجع
+                          {singleGateway?.status === "approved" && <CheckCircle2 className="h-3 w-3 text-success" />}
+                          {singleGateway?.status === "pending" && <span className="text-warning text-[10px]">(معلّق)</span>}
+                        </Label>
+                        <Input value={singleRef} onChange={(e) => setSingleRef(e.target.value)} placeholder="سيولَّد تلقائياً أو أدخله يدوياً" className="bg-secondary border-border font-mono text-xs" />
+                        {singleGateway?.gateway_ref && (
+                          <p className="text-[10px] text-muted-foreground mt-1 font-mono">مرجع البوابة: {singleGateway.gateway_ref}</p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -429,14 +530,24 @@ const POSPage = () => {
                   {splitLines.map((line, i) => (
                     <div key={i} className="bg-secondary/60 rounded-md p-2 space-y-1.5">
                       <div className="flex items-center gap-1.5">
-                        <select value={line.method} onChange={(e) => updateSplitLine(i, { method: e.target.value as PayMethod })} className="flex-1 bg-background border border-border rounded-md h-8 text-xs px-2">
+                        <select value={line.method} onChange={(e) => updateSplitLine(i, { method: e.target.value as PayMethod, reference: "", gateway_ref: undefined, status: undefined })} className="flex-1 bg-background border border-border rounded-md h-8 text-xs px-2">
                           {METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
                         </select>
                         <Input type="number" value={line.amount || ""} onChange={(e) => updateSplitLine(i, { amount: Number(e.target.value) })} placeholder="المبلغ" className="w-24 h-8 text-center bg-background border-border text-xs" />
                         <button onClick={() => removeSplitLine(i)} className="text-destructive p-1 disabled:opacity-30" disabled={splitLines.length === 1}><X className="h-4 w-4" /></button>
                       </div>
                       {METHODS.find((m) => m.id === line.method)?.needsRef && (
-                        <Input value={line.reference} onChange={(e) => updateSplitLine(i, { reference: e.target.value })} placeholder="رقم المرجع" className="bg-background border-border h-7 text-xs" />
+                        <div className="space-y-1">
+                          {GATEWAY_METHODS.includes(line.method) && (
+                            <Button size="sm" variant="outline" onClick={() => initiateSplit(i)} disabled={gatewayLoading === `split-${i}` || !line.amount} className="w-full h-7 text-[11px]">
+                              {gatewayLoading === `split-${i}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Zap className="h-3 w-3 ml-1" />بدء عبر البوابة</>}
+                            </Button>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <Input value={line.reference} onChange={(e) => updateSplitLine(i, { reference: e.target.value })} placeholder="رقم المرجع" className="bg-background border-border h-7 text-xs font-mono" />
+                            {line.status === "approved" && <CheckCircle2 className="h-3 w-3 text-success shrink-0" />}
+                          </div>
+                        </div>
                       )}
                     </div>
                   ))}

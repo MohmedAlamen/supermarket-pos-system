@@ -7,9 +7,13 @@ const DB_VERSION = 1;
 export type SaleStatus = "pending" | "synced" | "failed";
 
 export interface PaymentEntry {
-  method: string; // cash | card | stcpay | applepay | bank | other
+  method: string; // cash | card | mada | stcpay | applepay | bank | other
   amount: number;
   reference?: string;
+  gateway?: string;
+  gateway_ref?: string;
+  status?: "pending" | "approved" | "failed" | "refunded" | "voided";
+  raw?: Record<string, unknown> | null;
 }
 
 export interface PendingSale {
