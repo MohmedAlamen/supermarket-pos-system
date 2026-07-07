@@ -188,6 +188,23 @@ export function useSales() {
         });
       }
 
+      // Persist a payment_transactions row per payment line (STC Pay / Mada / cash / ...)
+      if (storeId && payments.length > 0) {
+        const rows = payments.map((p: any) => ({
+          store_id: storeId,
+          sale_id: saleId,
+          method: p.method,
+          amount: Number(p.amount) || 0,
+          reference: p.reference || `${(p.method || "PAY").toUpperCase()}-${Date.now()}`,
+          gateway_ref: p.gateway_ref || null,
+          gateway: p.gateway || sale.payment_gateway || "manual",
+          status: (p.status as any) || "approved",
+          raw_response: p.raw || null,
+          created_by: user.id,
+        }));
+        await (supabase as any).from("payment_transactions").insert(rows);
+      }
+
       syncPendingSales();
       return { ok: true, invoice_number, qr_code: zatca.qr_code };
     } catch (err) {
