@@ -20,6 +20,9 @@ import PurchasesPage from "./pages/PurchasesPage";
 import BranchesPage from "./pages/BranchesPage";
 import PendingInvoicesPage from "./pages/PendingInvoicesPage";
 import ZatcaInvoicesPage from "./pages/ZatcaInvoicesPage";
+import LoyaltyPage from "./pages/LoyaltyPage";
+import CouponsPage from "./pages/CouponsPage";
+import RedemptionsPage from "./pages/RedemptionsPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 
@@ -46,6 +49,9 @@ const App = () => (
                 <Route path="/branches" element={<ProtectedRoute requiredRole="admin"><AppLayout><BranchesPage /></AppLayout></ProtectedRoute>} />
                 <Route path="/pending-invoices" element={<ProtectedRoute><AppLayout><PendingInvoicesPage /></AppLayout></ProtectedRoute>} />
                 <Route path="/zatca" element={<ProtectedRoute requiredRole="admin"><AppLayout><ZatcaInvoicesPage /></AppLayout></ProtectedRoute>} />
+                <Route path="/loyalty" element={<ProtectedRoute requiredRole="admin"><AppLayout><LoyaltyPage /></AppLayout></ProtectedRoute>} />
+                <Route path="/coupons" element={<ProtectedRoute requiredRole="admin"><AppLayout><CouponsPage /></AppLayout></ProtectedRoute>} />
+                <Route path="/redemptions" element={<ProtectedRoute requiredRole="admin"><AppLayout><RedemptionsPage /></AppLayout></ProtectedRoute>} />
                 <Route path="/staff" element={<ProtectedRoute requiredRole="admin"><AppLayout><StaffPage /></AppLayout></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute requiredRole="admin"><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
                 <Route path="*" element={<NotFound />} />

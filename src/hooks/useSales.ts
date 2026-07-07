@@ -32,6 +32,8 @@ export function useSales() {
     payment_status?: string;
     payment_reference?: string | null;
     payment_gateway?: string;
+    coupon?: { id: string; code: string; discount: number } | null;
+    loyalty?: { points_redeemed: number; loyalty_discount: number } | null;
   }): Promise<{ ok: boolean; invoice_number?: string; qr_code?: string; offline?: boolean }> => {
     if (!user) { toast.error("يجب تسجيل الدخول أولاً"); return { ok: false }; }
     if (!currentBranch) { toast.error("يجب اختيار الفرع أولاً"); return { ok: false }; }
@@ -102,9 +104,11 @@ export function useSales() {
         customer: customerForZatca,
       });
 
-      const { error } = await (supabase as any).from("sales").insert({
+      const storeId = (currentBranch as any).store_id || null;
+      const { data: saleRow, error } = await (supabase as any).from("sales").insert({
         cashier_id: user.id,
         branch_id: currentBranch.id,
+        store_id: storeId,
         invoice_number,
         customer_id: sale.customer_id || null,
         items: itemsPayload,
@@ -117,9 +121,15 @@ export function useSales() {
         payment_gateway,
         payment_reference,
         payments,
+        coupon_id: sale.coupon?.id || null,
+        coupon_code: sale.coupon?.code || null,
+        coupon_discount: sale.coupon?.discount || 0,
+        loyalty_points_redeemed: sale.loyalty?.points_redeemed || 0,
+        loyalty_discount: sale.loyalty?.loyalty_discount || 0,
         ...zatca,
-      });
+      }).select("id").single();
       if (error) throw error;
+      const saleId = saleRow?.id;
 
       for (const it of sale.items) {
         const { data: row } = await (supabase as any)
@@ -135,18 +145,47 @@ export function useSales() {
         );
       }
 
-      if (sale.customer_id) {
+      // Loyalty program + coupon side-effects
+      let pointsEarned = 0;
+      if (storeId && sale.customer_id) {
+        const { data: program } = await (supabase as any)
+          .from("loyalty_programs")
+          .select("is_active, points_per_currency")
+          .eq("store_id", storeId).maybeSingle();
+        if (program?.is_active) {
+          pointsEarned = Math.floor(Math.max(0, sale.total) * Number(program.points_per_currency || 0));
+          if (pointsEarned > 0) {
+            await (supabase as any).from("loyalty_transactions").insert({
+              store_id: storeId, customer_id: sale.customer_id, sale_id: saleId,
+              type: "earn", points: pointsEarned, reason: `فاتورة ${invoice_number}`, created_by: user.id,
+            });
+          }
+        }
+        if (sale.loyalty && sale.loyalty.points_redeemed > 0) {
+          await (supabase as any).from("loyalty_transactions").insert({
+            store_id: storeId, customer_id: sale.customer_id, sale_id: saleId,
+            type: "redeem", points: -Math.abs(sale.loyalty.points_redeemed),
+            reason: `استرداد على فاتورة ${invoice_number}`, created_by: user.id,
+          });
+        }
+        // update total_purchases + earned points cached column
+        if (pointsEarned > 0) {
+          await (supabase as any).from("sales").update({ loyalty_points_earned: pointsEarned }).eq("id", saleId);
+        }
         const { data: cust } = await (supabase as any)
-          .from("customers").select("loyalty_points, total_purchases").eq("id", sale.customer_id).maybeSingle();
+          .from("customers").select("total_purchases").eq("id", sale.customer_id).maybeSingle();
         if (cust) {
-          const { data: settings } = await (supabase as any)
-            .from("store_settings").select("loyalty_points_per_unit").limit(1).maybeSingle();
-          const rate = Number(settings?.loyalty_points_per_unit ?? 0.01);
           await (supabase as any).from("customers").update({
-            loyalty_points: Math.floor((cust.loyalty_points || 0) + sale.total * rate),
             total_purchases: Number(cust.total_purchases || 0) + sale.total,
           }).eq("id", sale.customer_id);
         }
+      }
+
+      if (storeId && sale.coupon?.id) {
+        await (supabase as any).from("coupon_redemptions").insert({
+          store_id: storeId, coupon_id: sale.coupon.id, customer_id: sale.customer_id || null,
+          sale_id: saleId, discount_applied: sale.coupon.discount, redeemed_by: user.id,
+        });
       }
 
       syncPendingSales();

@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Receipt, Loader2, ScanLine, UserCircle, X, Smartphone, Wallet, Building2, Split } from "lucide-react";
 import ReceiptPrint from "@/components/pos/ReceiptPrint";
+import LoyaltyCouponPanel, { AppliedCoupon } from "@/components/pos/LoyaltyCouponPanel";
 import BarcodeScanner from "@/components/pos/BarcodeScanner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,8 @@ const POSPage = () => {
   const [showCheckout, setShowCheckout] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [loyaltyRedeem, setLoyaltyRedeem] = useState<{ points: number; discount: number }>({ points: 0, discount: 0 });
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -116,7 +119,9 @@ const POSPage = () => {
 
   const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const discountAmount = (subtotal * discount) / 100;
-  const afterDiscount = subtotal - discountAmount;
+  const couponDiscount = appliedCoupon?.discount || 0;
+  const loyaltyDiscount = loyaltyRedeem.discount || 0;
+  const afterDiscount = Math.max(0, subtotal - discountAmount - couponDiscount - loyaltyDiscount);
   const taxRate = Number(settings.tax_rate) || 0;
   const taxAmount = (afterDiscount * taxRate) / 100;
   const total = afterDiscount + taxAmount;
@@ -173,6 +178,8 @@ const POSPage = () => {
       payment_status: "paid",
       payment_reference: primaryRef,
       payment_gateway: "manual",
+      coupon: appliedCoupon,
+      loyalty: loyaltyRedeem.points > 0 ? { points_redeemed: loyaltyRedeem.points, loyalty_discount: loyaltyRedeem.discount } : null,
     });
     setProcessing(false);
 
@@ -209,6 +216,8 @@ const POSPage = () => {
     setPayMode("single");
     setSingleMethod("cash");
     setSelectedCustomer(null);
+    setAppliedCoupon(null);
+    setLoyaltyRedeem({ points: 0, discount: 0 });
     setShowCheckout(false);
     setTimeout(() => window.print(), 300);
   };
@@ -331,6 +340,15 @@ const POSPage = () => {
         </div>
 
         <div className="p-4 border-t border-border space-y-3">
+          <LoyaltyCouponPanel
+            customer={selectedCustomer}
+            subtotal={subtotal - discountAmount}
+            appliedCoupon={appliedCoupon}
+            onCouponChange={setAppliedCoupon}
+            pointsToRedeem={loyaltyRedeem.points}
+            onPointsChange={(points, discount) => setLoyaltyRedeem({ points, discount })}
+          />
+
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">خصم %</span>
             <Input type="number" value={discount || ""} onChange={(e) => setDiscount(Number(e.target.value))} className="w-20 h-8 text-center bg-secondary border-border" min={0} max={100} />
@@ -347,6 +365,18 @@ const POSPage = () => {
                 <span>الخصم ({discount}%)</span>
               </div>
             )}
+            {couponDiscount > 0 && (
+              <div className="flex justify-between text-destructive">
+                <span>-{couponDiscount.toFixed(2)} ر.س</span>
+                <span>كوبون {appliedCoupon?.code}</span>
+              </div>
+            )}
+            {loyaltyDiscount > 0 && (
+              <div className="flex justify-between text-destructive">
+                <span>-{loyaltyDiscount.toFixed(2)} ر.س</span>
+                <span>نقاط الولاء ({loyaltyRedeem.points})</span>
+              </div>
+            )}
             {taxRate > 0 && (
               <div className="flex justify-between text-muted-foreground">
                 <span>+{taxAmount.toFixed(2)} ر.س</span>
@@ -358,6 +388,7 @@ const POSPage = () => {
               <span>الإجمالي</span>
             </div>
           </div>
+
 
           {showCheckout ? (
             <div className="space-y-3 animate-slide-in max-h-[55vh] overflow-y-auto pr-1">

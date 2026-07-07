@@ -1,102 +1,74 @@
-## نطاق ZATCA Phase 2 (الفوترة الإلكترونية السعودية)
+## برنامج الولاء المتقدم
 
-تكامل ZATCA Phase 2 يتكوّن من 4 طبقات. سأنفّذها على مراحل — الطبقات 1 و2 لا تحتاج شهادات ZATCA وتعمل الآن، والطبقات 3 و4 تحتاج تسجيل مع ZATCA.
+نظام ولاء متعدد المتاجر يشمل نقاطاً للعملاء، كوبونات خصم، وإدارة كاملة للاستردادات، مربوط بالمتجر النشط (store_id) وبنظام نقطة البيع الحالي.
 
----
+### 1) قاعدة البيانات (Migration)
 
-## المرحلة الأولى (سأبدأ بها الآن) — الأساس المستقل
+**جداول جديدة (كلها مربوطة بـ store_id + RLS حسب عضوية المتجر):**
 
-### 1. توسعة قاعدة البيانات
-جدول `sales` — إضافة أعمدة ZATCA:
-- `icv` (عدّاد الفاتورة لكل جهاز/فرع — Invoice Counter Value)
-- `uuid_zatca` (UUID فريد للفاتورة)
-- `previous_invoice_hash` (PIH — للـ hash chain)
-- `invoice_hash` (SHA-256 للفاتورة الحالية)
-- `xml_content` (نص XML UBL 2.1 الكامل)
-- `qr_code` (TLV base64 — للطباعة على الفاتورة)
-- `zatca_status` (`not_submitted` / `reported` / `cleared` / `rejected`)
-- `zatca_response` (JSONB — رد ZATCA)
-- `invoice_type` (`simplified` / `standard` — B2C / B2B)
+- **loyalty_programs** — إعدادات البرنامج لكل متجر: نسبة النقاط لكل ريال (`points_per_currency`), قيمة النقطة عند الاسترداد (`currency_per_point`), الحد الأدنى للاسترداد, حالة التفعيل, انتهاء النقاط بعد X شهر.
+- **loyalty_transactions** — سجل حركات النقاط: type (`earn` / `redeem` / `adjust` / `expire` / `refund`), points (± موجب/سالب), customer_id, sale_id (اختياري), reason, created_by, created_at. مصدر الحقيقة لرصيد العميل = مجموع النقاط.
+- **coupons** — الكوبونات: code (unique per store), نوع الخصم (`percent` / `fixed` / `free_shipping`), القيمة, الحد الأدنى للفاتورة, تاريخ البداية والانتهاء, عدد الاستخدامات الكلي والمتبقي, حد الاستخدام لكل عميل, is_active.
+- **coupon_redemptions** — كل عملية استخدام لكوبون: coupon_id, customer_id, sale_id, discount_applied, redeemed_by, redeemed_at.
 
-جدول `branches` — إضافة:
-- `device_serial` (رقم تسلسلي للجهاز)
-- `common_name`, `organization_name`, `country_code`, `crn` (السجل التجاري) — لبيانات الشهادة
-- `last_invoice_hash` (لسلسلة الـ hash)
+**تعديلات على `sales`:**
+- `coupon_id` (nullable) + `coupon_code` + `coupon_discount` (تخفيض من الكوبون)
+- `loyalty_points_earned` + `loyalty_points_redeemed` + `loyalty_discount`
 
-### 2. مكتبة توليد UBL 2.1 XML
-`src/lib/zatca/xml.ts` — بناء XML UBL موافق لمواصفات ZATCA لكل فاتورة:
-- بيانات البائع، المشتري، البنود، الضرائب، الخصومات
-- ربطها تلقائياً بترقيم الفرع الحالي (invoice_prefix + counter)
-- توليد UUID + ICV + PIH من آخر فاتورة في نفس الفرع
+**دوال SQL (Security Definer):**
+- `get_customer_points(_customer_id)` → SUM من loyalty_transactions
+- `redeem_coupon(_code, _customer_id, _subtotal, _store_id)` → التحقق من الصلاحية وإرجاع قيمة الخصم (بدون تسجيل — التسجيل يحدث عند الحفظ)
 
-### 3. QR TLV Base64
-`src/lib/zatca/qr.ts` — توليد QR بصيغة TLV Base64 (5 حقول للفاتورة المبسّطة B2C):
-1. اسم البائع
-2. الرقم الضريبي
-3. التاريخ والوقت (ISO 8601)
-4. الإجمالي مع الضريبة
-5. مبلغ الضريبة
+### 2) نقطة البيع (POS)
 
-عرضه على الإيصال المطبوع تلقائياً.
+في `POSPage` وسلة الشراء نضيف قسم **"الولاء والكوبونات"**:
+- عرض رصيد نقاط العميل (إن اختير عميل) + قيمتها بالريال.
+- زر **"استخدام النقاط"** (input بعدد النقاط ≤ الرصيد ≤ الحد الأدنى المسموح).
+- حقل **"كود كوبون"** + زر تطبيق → استدعاء `redeem_coupon` وعرض قيمة الخصم أو الخطأ.
+- إظهار سطر منفصل في ملخص الفاتورة: خصم الكوبون / خصم النقاط / النقاط المكتسبة من هذه الفاتورة.
 
-### 4. Hash Chain
-`src/lib/zatca/hash.ts` — SHA-256 للفاتورة، وربط `previous_invoice_hash` بالفاتورة السابقة لنفس الفرع (يُقرأ من `branches.last_invoice_hash` ويُحدَّث بعد كل بيع).
+عند حفظ الفاتورة (`persistSale`):
+- تخزين `coupon_id/code/discount` و `loyalty_points_earned/redeemed` في `sales`.
+- إنشاء transactions في `loyalty_transactions`: صف earn بالنقاط المكتسبة، وصف redeem سالب إن استخدمت نقاط.
+- إنشاء صف في `coupon_redemptions` وتخفيض `remaining_uses` للكوبون.
 
-### 5. صفحة "فواتير ZATCA"
-- عرض الفواتير مع حالة ZATCA
-- زر تنزيل XML لكل فاتورة
-- عرض QR + PIH + Hash
+### 3) الصفحات الجديدة
 
----
+- **`/loyalty`** — إعدادات البرنامج، رصيد أعلى 10 عملاء، إحصائيات (نقاط ممنوحة/مستردة هذا الشهر).
+- **`/coupons`** — CRUD كامل للكوبونات + نسخ الكود + عرض عدد الاستخدامات المتبقية + تفعيل/تعطيل.
+- **`/redemptions`** — صفحة إدارة الاستردادات: جدول موحّد يعرض حركات النقاط + استخدامات الكوبونات مع فلاتر (النوع، العميل، الفترة، الكوبون)، إمكانية **إلغاء استرداد** (يُنشئ حركة عكسية refund + يعيد استخدام الكوبون)، تصدير Excel.
 
-## المرحلة الثانية (لاحقاً) — التوقيع الرقمي والإرسال
+### 4) الشريط الجانبي والصلاحيات
 
-### 6. Edge Function للتوقيع
-`supabase/functions/zatca-sign/index.ts`:
-- توقيع XML بمفتاح ECDSA P-256
-- إضافة الـ signature + certificate إلى XML
-- توليد QR TLV بـ 9 حقول (للفواتير الضريبية B2B)
+- إضافة روابط: "الولاء" و"الكوبونات" و"الاستردادات" (admin/manager فقط للإدارة، الكاشير يرى فقط).
+- صفحة العميل تعرض تبويب "سجل النقاط" مع الحركات.
 
-**يحتاج**: توليد CSR + تسجيل مع ZATCA للحصول على Compliance CSID → Production CSID.
+### تفاصيل تقنية
 
-### 7. Edge Function للإرسال
-`supabase/functions/zatca-submit/index.ts`:
-- **B2C (Simplified)**: إرسال Reporting بعد البيع (خلال 24 ساعة)
-- **B2B (Standard)**: إرسال Clearance وانتظار الرد قبل الطباعة
-- تخزين رد ZATCA (`cleared` / `rejected` / warnings)
+**RLS:** كل الجداول الجديدة تستخدم `is_store_member(store_id)` للقراءة و `has_store_role(store_id, ARRAY['owner','admin','manager'])` للكتابة/الحذف. الكاشير يستطيع إنشاء `loyalty_transactions` و `coupon_redemptions` (اللازم للبيع) لكن لا يستطيع التعديل أو الحذف.
 
-### 8. Onboarding UI
-صفحة إعدادات لكل فرع:
-- إدخال بيانات المنشأة
-- توليد CSR
-- إدخال OTP من بوابة Fatoora
-- الحصول على شهادة الامتثال ثم الإنتاج
+**التزامن مع دون اتصال:** حركات النقاط والكوبونات جزء من عملية الحفظ نفسها في `persistSale` (نفس المسار الحالي). عند إعادة المزامنة من IndexedDB، تُنفَّذ نفس الخطوات.
 
----
+**الحقل `customers.loyalty_points`** يبقى كـ cache للعرض السريع، ويُحدَّث عبر trigger على `loyalty_transactions`.
 
-## بيئة العمل
+**الملفات الجديدة:**
+```
+supabase/migrations/*.sql
+src/hooks/useLoyalty.ts
+src/hooks/useCoupons.ts
+src/components/pos/LoyaltyCouponPanel.tsx
+src/pages/LoyaltyPage.tsx
+src/pages/CouponsPage.tsx
+src/pages/RedemptionsPage.tsx
+```
 
-- **Sandbox أولاً**: كل استدعاءات ZATCA تذهب إلى بيئة `sandbox.zatca.gov.sa` حتى ينتهي الاختبار
-- **Production لاحقاً**: تبديل عبر مفتاح في إعدادات المتجر
+**الملفات المعدَّلة:**
+```
+src/App.tsx                 (روابط الصفحات)
+src/components/AppSidebar.tsx
+src/pages/POSPage.tsx       (دمج لوحة الولاء)
+src/hooks/useSales.ts       (حفظ نقاط + كوبون)
+src/lib/zatca/persist.ts    (إضافة loyalty/coupon fields)
+```
 
----
-
-## ما أحتاجه منك لاحقاً (المرحلة الثانية)
-
-1. الرقم الضريبي للمنشأة (15 رقم يبدأ بـ 3 وينتهي بـ 3)
-2. رقم السجل التجاري (CRN)
-3. اسم المنشأة بالإنجليزية
-4. عنوان المنشأة (شارع، مبنى، حي، مدينة، رمز بريدي)
-5. OTP من بوابة Fatoora لكل فرع (للحصول على شهادة الامتثال)
-
----
-
-## خطة التنفيذ الآن
-
-سأنفّذ **المرحلة الأولى فقط** الآن (البنود 1–5). النتيجة:
-- كل فاتورة جديدة تُخزَّن مع XML كامل، QR TLV، Hash، ICV، PIH
-- QR يظهر على الإيصال المطبوع
-- يمكنك تنزيل XML وتقديمه يدوياً لـ ZATCA للاختبار
-- كل شيء جاهز لتفعيل التوقيع والإرسال في المرحلة الثانية دون تعديل بنية البيانات
-
-هل أبدأ؟
+بعد الموافقة سأبدأ بـ (1) الـ migration ثم (2) الصفحات والـ hooks ثم (3) دمج POS.
