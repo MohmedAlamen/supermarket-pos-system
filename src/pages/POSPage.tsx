@@ -13,14 +13,27 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { Product, CartItem, Customer } from "@/types/pos";
 import { toast } from "sonner";
+import { initiatePayment, generateLocalReference, type PayGatewayMethod } from "@/lib/payments";
+import { useStore } from "@/contexts/StoreContext";
 
-type PayMethod = "cash" | "card" | "stcpay" | "applepay" | "bank";
-interface PayLine { method: PayMethod; amount: number; reference: string; }
+type PayMethod = "cash" | "card" | "mada" | "stcpay" | "applepay" | "bank";
+interface PayLine {
+  method: PayMethod;
+  amount: number;
+  reference: string;
+  gateway_ref?: string;
+  status?: "pending" | "approved" | "failed";
+  mobile?: string;
+  raw?: Record<string, unknown> | null;
+}
 
-const METHODS: { id: PayMethod; label: string; icon: any; needsRef: boolean }[] = [
+const GATEWAY_METHODS: PayMethod[] = ["stcpay", "mada", "card"];
+
+const METHODS: { id: PayMethod; label: string; icon: any; needsRef: boolean; gateway?: boolean }[] = [
   { id: "cash", label: "نقدي", icon: Banknote, needsRef: false },
-  { id: "card", label: "بطاقة", icon: CreditCard, needsRef: true },
-  { id: "stcpay", label: "STC Pay", icon: Smartphone, needsRef: true },
+  { id: "mada", label: "مدى", icon: CreditCard, needsRef: true, gateway: true },
+  { id: "card", label: "بطاقة", icon: CreditCard, needsRef: true, gateway: true },
+  { id: "stcpay", label: "STC Pay", icon: Smartphone, needsRef: true, gateway: true },
   { id: "applepay", label: "Apple Pay", icon: Wallet, needsRef: true },
   { id: "bank", label: "تحويل بنكي", icon: Building2, needsRef: true },
 ];
