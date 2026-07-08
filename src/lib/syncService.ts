@@ -1,5 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
-import { pendingSales, markSynced, markFailed, pendingCount, type PendingSale } from "@/lib/offlineDB";
+import {
+  pendingSales, markSynced, markFailed, markStockAdjusted,
+  pendingCount, type PendingSale,
+} from "@/lib/offlineDB";
 import { toast } from "sonner";
 import { buildAndPersistZatca, readBranchCounter } from "@/lib/zatca/persist";
 
