@@ -214,6 +214,7 @@ export function useSales() {
       console.error("online save failed, falling back to offline queue", err);
       const invoice_number = localInvoiceNumber(currentBranch.invoice_prefix || "INV");
       await enqueueSale({
+        client_uid, // reuse same idempotency key → sync dedupes if the server actually got it
         branch_id: currentBranch.id,
         cashier_id: user.id,
         customer_id: sale.customer_id || null,
