@@ -114,7 +114,13 @@ export default function PendingInvoicesPage() {
               <TableCell>{s.items.length}</TableCell>
               <TableCell className="font-semibold">{s.total.toFixed(2)} ر.س</TableCell>
               <TableCell>{s.payment_method === "cash" ? "نقدي" : "بطاقة"}</TableCell>
-              <TableCell>{s.attempts || 0}{s.last_error && <div className="text-[10px] text-destructive max-w-[160px] truncate" title={s.last_error}>{s.last_error}</div>}</TableCell>
+              <TableCell>
+                {s.attempts || 0}
+                {s.last_error && <div className="text-[10px] text-destructive max-w-[160px] truncate" title={s.last_error}>{s.last_error}</div>}
+                {s.next_retry_at && s.status === "pending" && new Date(s.next_retry_at) > new Date() && (
+                  <div className="text-[10px] text-muted-foreground">إعادة المحاولة {new Date(s.next_retry_at).toLocaleTimeString("ar-SA")}</div>
+                )}
+              </TableCell>
               <TableCell>
                 <div className="flex gap-1">
                   {s.status === "synced" && (
@@ -122,8 +128,8 @@ export default function PendingInvoicesPage() {
                       <Printer className="h-3.5 w-3.5" />
                     </Button>
                   )}
-                  {s.status === "failed" && (
-                    <Button size="sm" variant="outline" onClick={() => handleRetry(s.id!)} title="إعادة المحاولة">
+                  {(s.status === "failed" || (s.status === "pending" && s.next_retry_at)) && (
+                    <Button size="sm" variant="outline" onClick={() => handleRetry(s.id!)} title="إعادة المحاولة الآن">
                       <RefreshCw className="h-3.5 w-3.5" />
                     </Button>
                   )}

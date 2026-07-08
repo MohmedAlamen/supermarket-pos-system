@@ -1,5 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
-import { pendingSales, markSynced, markFailed, pendingCount, type PendingSale } from "@/lib/offlineDB";
+import {
+  pendingSales, markSynced, markFailed, markStockAdjusted,
+  pendingCount, type PendingSale,
+} from "@/lib/offlineDB";
 import { toast } from "sonner";
 import { buildAndPersistZatca, readBranchCounter } from "@/lib/zatca/persist";
 
@@ -32,6 +35,29 @@ export async function syncPendingSales(): Promise<{ synced: number; failed: numb
     const queue = await pendingSales();
     for (const s of queue) {
       try {
+        // ── 1) Idempotency check: has this exact sale already been persisted? ──
+        // A previous attempt may have committed the row on the server but
+        // failed to receive the response (network drop, timeout, tab close).
+        // Detect it via the client_uid we generated when queuing the sale.
+        if (s.client_uid) {
+          const { data: existing } = await (supabase as any)
+            .from("sales")
+            .select("invoice_number")
+            .eq("client_uid", s.client_uid)
+            .maybeSingle();
+          if (existing?.invoice_number) {
+            // Server already has it — do NOT re-decrement stock, just reconcile.
+            await markSynced(s.id!, existing.invoice_number, s.stock_adjusted === true);
+            const updated: PendingSale = {
+              ...s, status: "synced", final_invoice_number: existing.invoice_number,
+            };
+            syncedListeners.forEach((l) => l(updated));
+            synced++;
+            continue;
+          }
+        }
+
+        // ── 2) Reserve invoice number + build ZATCA envelope ──
         const { data: inv, error: invErr } = await (supabase as any)
           .rpc("generate_branch_invoice_number", { _branch_id: s.branch_id });
         if (invErr) throw invErr;
@@ -59,9 +85,11 @@ export async function syncPendingSales(): Promise<{ synced: number; failed: numb
           customer: customerForZatca,
         });
 
+        // ── 3) Insert sale row (unique index on client_uid guarantees dedupe) ──
         const { error } = await (supabase as any).from("sales").insert({
           cashier_id: s.cashier_id,
           branch_id: s.branch_id,
+          client_uid: s.client_uid,
           invoice_number,
           customer_id: s.customer_id,
           items: s.items,
@@ -77,23 +105,42 @@ export async function syncPendingSales(): Promise<{ synced: number; failed: numb
           created_at: s.created_at,
           ...zatca,
         });
-        if (error) throw error;
-
-        for (const it of s.items) {
-          const { data: row } = await (supabase as any)
-            .from("branch_stock")
-            .select("stock")
-            .eq("branch_id", s.branch_id)
-            .eq("product_id", it.product_id)
-            .maybeSingle();
-          const current = Number(row?.stock || 0);
-          await (supabase as any).from("branch_stock").upsert(
-            { branch_id: s.branch_id, product_id: it.product_id, stock: Math.max(0, current - it.quantity) },
-            { onConflict: "branch_id,product_id" }
-          );
+        if (error) {
+          // Postgres unique-violation → row was already inserted by a prior try.
+          // Reconcile by looking it up and treat as success.
+          if (error.code === "23505" && s.client_uid) {
+            const { data: existing } = await (supabase as any)
+              .from("sales").select("invoice_number").eq("client_uid", s.client_uid).maybeSingle();
+            if (existing?.invoice_number) {
+              await markSynced(s.id!, existing.invoice_number, s.stock_adjusted === true);
+              const updated: PendingSale = { ...s, status: "synced", final_invoice_number: existing.invoice_number };
+              syncedListeners.forEach((l) => l(updated));
+              synced++;
+              continue;
+            }
+          }
+          throw error;
         }
 
-        await markSynced(s.id!, invoice_number);
+        // ── 4) Adjust stock ONCE per sale, even across retries ──
+        if (!s.stock_adjusted) {
+          for (const it of s.items) {
+            const { data: row } = await (supabase as any)
+              .from("branch_stock")
+              .select("stock")
+              .eq("branch_id", s.branch_id)
+              .eq("product_id", it.product_id)
+              .maybeSingle();
+            const current = Number(row?.stock || 0);
+            await (supabase as any).from("branch_stock").upsert(
+              { branch_id: s.branch_id, product_id: it.product_id, stock: Math.max(0, current - it.quantity) },
+              { onConflict: "branch_id,product_id" }
+            );
+          }
+          await markStockAdjusted(s.id!);
+        }
+
+        await markSynced(s.id!, invoice_number, true);
         const updated: PendingSale = { ...s, status: "synced", final_invoice_number: invoice_number };
         syncedListeners.forEach((l) => l(updated));
         synced++;

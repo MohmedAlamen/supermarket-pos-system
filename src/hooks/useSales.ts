@@ -51,10 +51,12 @@ export function useSales() {
     const payment_reference = sale.payment_reference || null;
 
     const offline = typeof navigator !== "undefined" && !navigator.onLine;
+    const client_uid = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 
     if (offline) {
       const invoice_number = localInvoiceNumber(currentBranch.invoice_prefix || "INV");
       await enqueueSale({
+        client_uid,
         branch_id: currentBranch.id,
         cashier_id: user.id,
         customer_id: sale.customer_id || null,
@@ -109,6 +111,7 @@ export function useSales() {
         cashier_id: user.id,
         branch_id: currentBranch.id,
         store_id: storeId,
+        client_uid,
         invoice_number,
         customer_id: sale.customer_id || null,
         items: itemsPayload,
@@ -211,6 +214,7 @@ export function useSales() {
       console.error("online save failed, falling back to offline queue", err);
       const invoice_number = localInvoiceNumber(currentBranch.invoice_prefix || "INV");
       await enqueueSale({
+        client_uid, // reuse same idempotency key → sync dedupes if the server actually got it
         branch_id: currentBranch.id,
         cashier_id: user.id,
         customer_id: sale.customer_id || null,
