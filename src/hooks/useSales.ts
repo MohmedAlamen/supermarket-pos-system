@@ -51,10 +51,12 @@ export function useSales() {
     const payment_reference = sale.payment_reference || null;
 
     const offline = typeof navigator !== "undefined" && !navigator.onLine;
+    const client_uid = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 
     if (offline) {
       const invoice_number = localInvoiceNumber(currentBranch.invoice_prefix || "INV");
       await enqueueSale({
+        client_uid,
         branch_id: currentBranch.id,
         cashier_id: user.id,
         customer_id: sale.customer_id || null,
