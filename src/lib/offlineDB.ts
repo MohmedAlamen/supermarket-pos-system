@@ -117,9 +117,19 @@ export async function loadCachedSettings(): Promise<StoreSettings | null> {
   return (await d.get("settings", "store")) || null;
 }
 
-export async function enqueueSale(sale: Omit<PendingSale, "id" | "attempts" | "status">) {
+export async function enqueueSale(
+  sale: Omit<PendingSale, "id" | "attempts" | "status" | "client_uid"> & { client_uid?: string },
+) {
   const d = await db();
-  await d.add("pending_sales", { ...sale, status: "pending", attempts: 0 } as any);
+  const client_uid = sale.client_uid || (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
+  await d.add("pending_sales", {
+    ...sale,
+    client_uid,
+    status: "pending",
+    attempts: 0,
+    stock_adjusted: false,
+    next_retry_at: null,
+  } as any);
 }
 
 export async function allSales(): Promise<PendingSale[]> {
@@ -129,10 +139,16 @@ export async function allSales(): Promise<PendingSale[]> {
 
 export async function pendingSales(): Promise<PendingSale[]> {
   const all = await allSales();
-  return all.filter((s) => s.status !== "synced");
+  const now = Date.now();
+  return all.filter((s) => {
+    if (s.status === "synced") return false;
+    // Respect backoff gate for auto-retries; manual retry clears next_retry_at.
+    if (s.next_retry_at && new Date(s.next_retry_at).getTime() > now) return false;
+    return true;
+  });
 }
 
-export async function markSynced(id: number, final_invoice_number: string) {
+export async function markSynced(id: number, final_invoice_number: string, stockAdjusted = true) {
   const d = await db();
   const row = await d.get("pending_sales", id);
   if (row) {
@@ -140,17 +156,37 @@ export async function markSynced(id: number, final_invoice_number: string) {
     row.final_invoice_number = final_invoice_number;
     row.synced_at = new Date().toISOString();
     row.last_error = null;
+    row.next_retry_at = null;
+    if (stockAdjusted) row.stock_adjusted = true;
     await d.put("pending_sales", row);
   }
+}
+
+export async function markStockAdjusted(id: number) {
+  const d = await db();
+  const row = await d.get("pending_sales", id);
+  if (row) { row.stock_adjusted = true; await d.put("pending_sales", row); }
+}
+
+function backoffMs(attempts: number) {
+  // 15s, 30s, 1m, 2m, 5m (capped)
+  const ladder = [15_000, 30_000, 60_000, 120_000, 300_000];
+  return ladder[Math.min(attempts, ladder.length - 1)];
 }
 
 export async function markFailed(id: number, error: string) {
   const d = await db();
   const row = await d.get("pending_sales", id);
   if (row) {
-    row.status = "failed";
     row.attempts = (row.attempts || 0) + 1;
     row.last_error = error;
+    if (row.attempts >= MAX_SYNC_ATTEMPTS) {
+      row.status = "failed";
+      row.next_retry_at = null; // stop auto-retry; user must trigger it
+    } else {
+      row.status = "pending";
+      row.next_retry_at = new Date(Date.now() + backoffMs(row.attempts - 1)).toISOString();
+    }
     await d.put("pending_sales", row);
   }
 }
@@ -161,9 +197,12 @@ export async function retrySale(id: number) {
   if (row && row.status !== "synced") {
     row.status = "pending";
     row.last_error = null;
+    row.next_retry_at = null;
+    row.attempts = 0; // manual retry resets the counter
     await d.put("pending_sales", row);
   }
 }
+
 
 export async function removePending(id: number) {
   const d = await db();
