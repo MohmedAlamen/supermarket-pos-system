@@ -111,6 +111,7 @@ export function useSales() {
         cashier_id: user.id,
         branch_id: currentBranch.id,
         store_id: storeId,
+        client_uid,
         invoice_number,
         customer_id: sale.customer_id || null,
         items: itemsPayload,
