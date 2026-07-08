@@ -20,6 +20,7 @@ export interface PaymentEntry {
 
 export interface PendingSale {
   id?: number;
+  client_uid: string; // idempotency key — sent to server and unique in `sales.client_uid`
   branch_id: string;
   cashier_id: string;
   customer_id: string | null;
@@ -40,6 +41,8 @@ export interface PendingSale {
   synced_at?: string | null;
   created_at: string;
   attempts: number;
+  stock_adjusted?: boolean; // true once branch_stock was decremented for this sale
+  next_retry_at?: string | null; // ISO — backoff gate for auto retry
 }
 
 let _db: Promise<IDBPDatabase> | null = null;
