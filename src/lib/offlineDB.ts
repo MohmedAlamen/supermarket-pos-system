@@ -2,7 +2,9 @@ import { openDB, IDBPDatabase } from "idb";
 import type { Product, Customer, StoreSettings } from "@/types/pos";
 
 const DB_NAME = "pos-offline";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
+
+export const MAX_SYNC_ATTEMPTS = 5;
 
 export type SaleStatus = "pending" | "synced" | "failed";
 
