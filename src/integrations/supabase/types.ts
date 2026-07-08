@@ -660,6 +660,7 @@ export type Database = {
         Row: {
           branch_id: string | null
           cashier_id: string | null
+          client_uid: string | null
           coupon_code: string | null
           coupon_discount: number
           coupon_id: string | null
@@ -700,6 +701,7 @@ export type Database = {
         Insert: {
           branch_id?: string | null
           cashier_id?: string | null
+          client_uid?: string | null
           coupon_code?: string | null
           coupon_discount?: number
           coupon_id?: string | null
@@ -740,6 +742,7 @@ export type Database = {
         Update: {
           branch_id?: string | null
           cashier_id?: string | null
+          client_uid?: string | null
           coupon_code?: string | null
           coupon_discount?: number
           coupon_id?: string | null
